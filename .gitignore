@@ -1,0 +1,16 @@
+*.i
+*.p1
+*.d
+*.cmf
+*.elf
+*.hxl
+*.lst
+*.map
+*.mum
+*.o
+*.rlf
+*.sdb
+*.sym
+*.xml
+*.hex
+*.log
