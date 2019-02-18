@@ -47,6 +47,7 @@
 #include "../02_MCAL/GPIO/GPIO.h"
 #include "../02_MCAL/TIMER0/Timer0.h"
 #include "TimeoutModule/TimeoutModule.h"
+#include "../02_MCAL/I2C/I2C.h"
 
 /*
                          Main application
@@ -55,55 +56,37 @@ void main(void)
 {
     // Initialize the device
     SYSTEM_Initialize();
-    // TimeoutModule_vInit();
-    // I2C_vInit();
-
-    // If using interrupts in PIC18 High/Low Priority Mode you need to enable the Global High and Low Interrupts
-    // If using interrupts in PIC Mid-Range Compatibility Mode you need to enable the Global Interrupts
-    // Use the following macros to:
-
-    // Enable the Global Interrupts
-    //INTERRUPT_GlobalInterruptEnable();
-
-    // Disable the Global Interrupts
-    //INTERRUPT_GlobalInterruptDisable();  
-    //i2c1_writeNBytesRegister(0x08, 0x61);
-    //I2C_vWriteDataOnBus(0x08, 0x61);
-    
-    GPIO_vSetPinDirection(0xA4, GPIO_OUTPUT_PIN);
-    GPIO_vSetPinDirection(0xA5, GPIO_INPUT_PIN);
-    GPIO_vSetPinLevel(0xA4, STD_HIGH);
-    GPIO_vSetPinDirection(0xB3, GPIO_OUTPUT_PIN);
-    RB3PPS = 0x25;
     TimeoutModule_vInit();
-    uint8_t flag = 0;
-    STD_LogicLevel state = STD_LOW;
+    I2C_vInit();
+
+    //    GPIO_vSetPinDirection(0xA4, GPIO_OUTPUT_PIN);
+    //    GPIO_vSetPinDirection(0xA5, GPIO_INPUT_PIN);
+    //    GPIO_vSetPinLevel(0xA4, STD_HIGH);
+    //    GPIO_vSetPinDirection(0xB3, GPIO_OUTPUT_PIN);
+    //    RB3PPS = 0x25;
+    //    uint8_t flag = 0;
+    //    STD_LogicLevel state = STD_LOW;
+    uint8_t cnt = 0;
+    
     while (1)
     {
-        if ((GPIO_ui8GetPinLevel(0xA5) == STD_HIGH) || (TimeoutModule_uiSetTimeout(TIMEOUT_mS, 6500) == TIMEOUT_REACHED))
-        {
-            if(state == STD_LOW)
-            {
-                state = STD_HIGH;
-            }
-            else if(state == STD_HIGH)
-            {
-                state = STD_LOW;
-            }
-            GPIO_vSetPinLevel(0xA4, state);
-            flag = 1;
-        }
-        //i2c1_write1ByteRegister(0x08,0x35,0x36);
-        /*uint8_t initial = TimeoutModule_ui16GetValue();
-        while((1) || TimeoutModule_isTimeout_us(initial, 30));
-        RC1 = ~RC1;*/
-        //I2C_vMainFunction();
-        //I2C_vWriteDataOnBus(0x08, 0x36);
-        //I2C_vMainFunction();
-        //I2C_ui8ReadDataFromBus(0x08);
-
+        //        if ((GPIO_ui8GetPinLevel(0xA5) == STD_HIGH) || (TimeoutModule_uiSetTimeout(TIMEOUT_uS, 100) == TIMEOUT_REACHED))
+        //        {
+        //            if(state == STD_LOW)
+        //            {
+        //                state = STD_HIGH;
+        //            }
+        //            else if(state == STD_HIGH)
+        //            {
+        //                state = STD_LOW;
+        //            }
+        //            GPIO_vSetPinLevel(0xA4, state);
+        //            flag = 1;
+            I2C_vMasterTransmit(0x08,0x30,0x96);
+            __delay_ms(1);
     }
 }
+
 /**
  End of File
  */
