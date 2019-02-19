@@ -16,3 +16,5 @@
 *.log
 *.mk
 *.properties
+/02_SW/01_Master-Controller.X/nbproject/*.mk
+/02_SW/01_Master-Controller.X/nbproject/*.properties
