@@ -40,5 +40,7 @@ void I2C_vInit(void);
 
 void I2C_vMasterTransmit(uint8_t targetAdress, uint8_t targetRegister, uint8_t dataToBeSent);
 
+void I2C_vMasterRead(uint8_t targetAdress, uint8_t targetRegister, uint8_t numberOfBytes, uint8_t * storingLocation);
+
 #endif	/* I2C_H */
 

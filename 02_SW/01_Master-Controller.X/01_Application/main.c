@@ -59,6 +59,12 @@ void main(void)
     TimeoutModule_vInit();
     I2C_vInit();
 
+    uint8_t cnt;
+    
+    I2C_vMasterRead(0x08, 0x35, 1, &cnt);
+    __delay_us(400);
+    I2C_vMasterTransmit(0x08, 0x36, cnt);
+    
     //    GPIO_vSetPinDirection(0xA4, GPIO_OUTPUT_PIN);
     //    GPIO_vSetPinDirection(0xA5, GPIO_INPUT_PIN);
     //    GPIO_vSetPinLevel(0xA4, STD_HIGH);
@@ -66,8 +72,7 @@ void main(void)
     //    RB3PPS = 0x25;
     //    uint8_t flag = 0;
     //    STD_LogicLevel state = STD_LOW;
-    uint8_t cnt = 0;
-    
+
     while (1)
     {
         //        if ((GPIO_ui8GetPinLevel(0xA5) == STD_HIGH) || (TimeoutModule_uiSetTimeout(TIMEOUT_uS, 100) == TIMEOUT_REACHED))
@@ -82,8 +87,8 @@ void main(void)
         //            }
         //            GPIO_vSetPinLevel(0xA4, state);
         //            flag = 1;
-            I2C_vMasterTransmit(0x08,0x30,0x96);
-            __delay_ms(1);
+
+//        if(I2C2_GET)
     }
 }
 

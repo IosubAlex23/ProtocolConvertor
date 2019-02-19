@@ -24,11 +24,13 @@
 #define I2C2_RXBF_POSITION                  (0u)
 #define I2C2_MDR_POSITION                   (3u)
 #define I2C2_S_POSITION                     (5u)
+#define I2C_ACKCNT_POSTION                  (7u)
 #define I2C2_GET_TXIF()                     (MASK_8BIT_GET_BIT(PIR7, I2C2_TXIF_POSITION))
 #define I2C2_IS_TXB_EMPTY()                 (MASK_8BIT_GET_BIT(I2C2STAT1, I2C2_TXBE_POSITION))
 #define I2C2_IS_RXB_FULL()                  (MASK_8BIT_GET_BIT(I2C2STAT1, I2C2_RXBF_POSITION))
 #define I2C2_IS_MASTER_PAUSED()             (MASK_8BIT_GET_BIT(I2C2CON0, I2C2_MDR_POSITION))
 #define I2C2_SET_START()                    (MASK_8BIT_SET_BIT(I2C2CON0, I2C2_S_POSITION))
+#define I2C2_READ_RXB()                     (I2C2RXB)
 /*----------------------------------------------------------------------------*/
 /*                              Local data types                              */
 
@@ -76,7 +78,7 @@ void I2C_vInit(void)
     I2C2CON2 = 0x20;
     I2C2CLK = 0x03;
     MASK_8BIT_SET_BIT(I2C1STAT1, 2);
-// de aici in jos is copy paste de pe proj vechi
+    // de aici in jos is copy paste de pe proj vechi
     TRISC &= ~0x18;
     ANSELC &= ~0x18;
     WPUC |= 0x18;
@@ -106,7 +108,6 @@ void I2C_vMasterTransmit(uint8_t targetAdress, uint8_t targetRegister, uint8_t d
         {
             if (1u == I2C2_IS_RXB_FULL())
             {
-
             }
             else if (1u == I2C2_IS_TXB_EMPTY())
             {
@@ -119,6 +120,30 @@ void I2C_vMasterTransmit(uint8_t targetAdress, uint8_t targetRegister, uint8_t d
         
     }
     I2C2_WRITE_TXB(dataToBeSent);
+}
+
+void I2C_vMasterRead(uint8_t targetAdress, uint8_t targetRegister, uint8_t numberOfBytes, uint8_t * storingLocation)
+{
+    /* When the I2CxCNT = 0 the master will send NACK & STOP Condition */
+    MASK_8BIT_SET_BIT(I2C2CON1, I2C_ACKCNT_POSTION);
+    I2C2_vModuleEnable();
+ 
+    /* When I2C2CNT == 0 master wil send NACK & Stop Bit*/
+    I2C2_SET_CNT_VALUE(numberOfBytes);
+    I2C2_SET_TARGER_ADR(targetAdress, I2C_OPERATION_READ);
+    I2C2_SET_START();
+    while (I2C2_GET_CNT_VALUE() != 0x00)
+    {
+//        while (false == I2C2_bStopDetected())
+//        {
+            /* Wait for the RXbuffer to receive the byte from SDA */
+            while (0u == I2C2_IS_RXB_FULL())
+            {
+
+            }
+            *storingLocation = I2C2_READ_RXB();
+//        }
+    }
 }
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of local functions                      */
