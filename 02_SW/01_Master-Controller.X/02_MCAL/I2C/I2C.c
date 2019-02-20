@@ -15,22 +15,37 @@
 /*----------------------------------------------------------------------------*/
 #define CNT_VALUE_SEND_DATA                 (2u)
 #define I2C2_SET_CNT_VALUE(x)               (I2C2CNT = x)
-#define I2C2_GET_CNT_VALUE()                  (I2C2CNT)
+#define I2C2_GET_CNT_VALUE()                (I2C2CNT)
 #define I2C2_SET_TARGER_ADR(adr, rw)        (I2C2ADB1 = ((adr << 1) | rw))
 #define I2C2_WRITE_TXB(x)                   (I2C2TXB = x)
-#define I2C2_TXIF_POSITION                  (1u)
-#define I2C2_CLRBF_POSITION                 (2u)
-#define I2C2_TXBE_POSITION                  (5u)
-#define I2C2_RXBF_POSITION                  (0u)
-#define I2C2_MDR_POSITION                   (3u)
-#define I2C2_S_POSITION                     (5u)
-#define I2C_ACKCNT_POSTION                  (7u)
-#define I2C2_GET_TXIF()                     (MASK_8BIT_GET_BIT(PIR7, I2C2_TXIF_POSITION))
-#define I2C2_IS_TXB_EMPTY()                 (MASK_8BIT_GET_BIT(I2C2STAT1, I2C2_TXBE_POSITION))
-#define I2C2_IS_RXB_FULL()                  (MASK_8BIT_GET_BIT(I2C2STAT1, I2C2_RXBF_POSITION))
-#define I2C2_IS_MASTER_PAUSED()             (MASK_8BIT_GET_BIT(I2C2CON0, I2C2_MDR_POSITION))
-#define I2C2_SET_START()                    (MASK_8BIT_SET_BIT(I2C2CON0, I2C2_S_POSITION))
+#define I2C_TXIF_POSITION                   (1u)
+#define I2C_CLRBF_POSITION                  (2u)
+#define I2C_TXBE_POSITION                   (5u)
+#define I2C_RXBF_POSITION                   (0u)
+#define I2C_MDR_POSITION                    (3u)
+#define I2C_S_POSITION                      (5u)
+#define I2C_ACKCNT_POSITION                 (7u)
+#define I2C_ADRIE_POSITION                  (3u)
+#define I2C_ACKTIE_POSITION                 (6u)
+#define I2C_ACKDT_POSITION                  (6u)
+#define I2C_SMA_POSITION                    (6u)
+#define I2C_R_POSITION                      (4u)
+#define I2C_D_POSITION                      (3u)
+#define I2C_CSTR_POSTION                    (4u)
+#define I2C2_GET_TXIF()                     (MASK_8BIT_GET_BIT(PIR7, I2C_TXIF_POSITION))
+#define I2C2_IS_TXB_EMPTY()                 (MASK_8BIT_GET_BIT(I2C2STAT1, I2C_TXBE_POSITION))
+#define I2C2_IS_RXB_FULL()                  (MASK_8BIT_GET_BIT(I2C2STAT1, I2C_RXBF_POSITION))
+#define I2C2_IS_MASTER_PAUSED()             (MASK_8BIT_GET_BIT(I2C2CON0, I2C_MDR_POSITION))
+#define I2C2_SET_START()                    (MASK_8BIT_SET_BIT(I2C2CON0, I2C_S_POSITION))
 #define I2C2_READ_RXB()                     (I2C2RXB)
+#define I2C_MASK_SLAVE_MODE                 (0xF8)
+#define I2C2_SET_SLAVE_MODE()               (I2C2CON0 &= I2C_MASK_SLAVE_MODE);
+#define I2C2_IS_SLAVE_ACTIVE()              (MASK_8BIT_GET_BIT(I2C2STAT0, I2C_SMA_POSITION))
+#define I2C2_IS_READ_REQUEST()              (MASK_8BIT_GET_BIT(I2C2STAT0, I2C_R_POSITION))
+#define I2C2_LAST_BYTE_IS_DATA()            (MASK_8BIT_GET_BIT(I2C2STAT0, I2C_D_POSITION))
+#define I2C2_SET_ACKDT()                    (MASK_8BIT_CLEAR_BIT(I2C2CON1, I2C_ACKDT_POSITION))
+#define I2C2_SET_NACKDT()                   (MASK_8BIT_SET_BIT(I2C2CON1, I2C_ACKDT_POSITION))
+#define I2C2_RELEASE_CLOCK()                (MASK_8BIT_CLEAR_BIT(I2C2CON0, I2C_CSTR_POSTION))
 /*----------------------------------------------------------------------------*/
 /*                              Local data types                              */
 
@@ -115,9 +130,9 @@ void I2C_vMasterTransmit(uint8_t targetAdress, uint8_t targetRegister, uint8_t d
             }
         }
     }*/
-    while(0u == I2C2_IS_TXB_EMPTY())
+    while (0u == I2C2_IS_TXB_EMPTY())
     {
-        
+
     }
     I2C2_WRITE_TXB(dataToBeSent);
 }
@@ -125,24 +140,85 @@ void I2C_vMasterTransmit(uint8_t targetAdress, uint8_t targetRegister, uint8_t d
 void I2C_vMasterRead(uint8_t targetAdress, uint8_t targetRegister, uint8_t numberOfBytes, uint8_t * storingLocation)
 {
     /* When the I2CxCNT = 0 the master will send NACK & STOP Condition */
-    MASK_8BIT_SET_BIT(I2C2CON1, I2C_ACKCNT_POSTION);
+    MASK_8BIT_SET_BIT(I2C2CON1, I2C_ACKCNT_POSITION);
     I2C2_vModuleEnable();
- 
+
     /* When I2C2CNT == 0 master wil send NACK & Stop Bit*/
     I2C2_SET_CNT_VALUE(numberOfBytes);
     I2C2_SET_TARGER_ADR(targetAdress, I2C_OPERATION_READ);
     I2C2_SET_START();
     while (I2C2_GET_CNT_VALUE() != 0x00)
     {
-//        while (false == I2C2_bStopDetected())
-//        {
-            /* Wait for the RXbuffer to receive the byte from SDA */
-            while (0u == I2C2_IS_RXB_FULL())
+        //        while (false == I2C2_bStopDetected())
+        //        {
+        /* Wait for the RXbuffer to receive the byte from SDA */
+        while (0u == I2C2_IS_RXB_FULL())
+        {
+
+        }
+        *storingLocation = I2C2_READ_RXB();
+        //        }
+    }
+}
+
+void I2C_vJoinAsSlave(uint8_t adresssAsSlave)
+{
+    MASK_8BIT_SET_BIT(I2C2STAT1, I2C_CLRBF_POSITION);
+    /* Setting Slave 7 bit address */
+    I2C2_SET_SLAVE_MODE();
+    /* I2C2ADR0<7:1> address bits */
+    I2C2ADR0 = (adresssAsSlave << 1u);
+    //    I2C1ADR1 = (adresssAsSlave << 1u); /* ADRx<7:1>:7-bit Slave Address => Address 9*/
+    //    I2C1ADR2 = (adresssAsSlave << 1u); /* ADRx<7:1>:7-bit Slave Address => Address 9*/
+    //    I2C1ADR3 = (adresssAsSlave << 1u); /* ADRx<7:1>:7-bit Slave Address => Address 9*/
+    /* Setting ADRIE */
+    MASK_8BIT_SET_BIT(I2C2PIE, I2C_ADRIE_POSITION);
+    /* Clearing ACKTIE */
+    MASK_8BIT_CLEAR_BIT(I2C2PIE, I2C_ACKTIE_POSITION);
+    /* Setting ACKCNT */
+    MASK_8BIT_SET_BIT(I2C2CON1, I2C_ACKCNT_POSITION);
+    /* Clearing ACKDT */
+    I2C2_SET_ACKDT();
+    I2C2_vModuleEnable();
+}
+
+uint8_t I2C_vSlaveRead(void)
+{
+    uint8_t returnValue = 0x00;
+    I2C2_SET_CNT_VALUE(0x01);
+    if (1u == I2C2_IS_SLAVE_ACTIVE())
+    {
+
+        /* if == 0 it means the last byte was an address*/
+        if (0u == I2C2_LAST_BYTE_IS_DATA())
+        {
+            if (I2C2ADB0 == I2C2ADR0)
+            {
+                I2C2_SET_ACKDT();
+            }
+            else
+            {
+                I2C2_SET_NACKDT();
+            }
+            I2C2_RELEASE_CLOCK();
+        }
+        else
+        {
+            if (1u == I2C2_IS_READ_REQUEST())
             {
 
             }
-            *storingLocation = I2C2_READ_RXB();
-//        }
+            else
+            {
+                while (0u == I2C2_IS_RXB_FULL())
+                {
+                    I2C2_RELEASE_CLOCK();
+                }
+                returnValue = I2C2RXB;
+            }
+        }
+
+        return returnValue;
     }
 }
 /*----------------------------------------------------------------------------*/
@@ -168,7 +244,10 @@ bool I2C2_bStopDetected(void)
 
 void inline I2C2_vModuleEnable(void)
 {
-    I2C2CON0bits.EN = 1;
+    while (I2C2CON0bits.EN != 1u)
+    {
+        I2C2CON0bits.EN = 1;
+    }
 }
 
 void inline I2C2_vModuleDisable(void)

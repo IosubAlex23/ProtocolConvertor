@@ -30,7 +30,7 @@
 #define MASK_8BIT_GET_LSB_HALF(x)                       (x & MASK_4MSB_CLEAR)
 #define MASK_8BIT_CLEAR_BIT(reg, bitPosition)           (reg = reg & MASK_FOR_CLEARING_BIT(bitPosition))
 #define MASK_8BIT_SET_BIT(reg, bitPosition)             (reg = reg | MASK_FOR_SETTING_BIT(bitPosition))
-#define MASK_8BIT_GET_BIT(reg, bitPosition)             (reg & MASK_FOR_SETTING_BIT(bitPosition))
+#define MASK_8BIT_GET_BIT(reg, bitPosition)             ((reg & MASK_FOR_SETTING_BIT(bitPosition)) >> bitPosition)
 
 /* This returns the MS 8 bites of a byte */
 #define MASK_16BIT_GET_MSB_HALF(x)                       (x >> MASK_16BIT_HALF)
