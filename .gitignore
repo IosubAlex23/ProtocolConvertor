@@ -11,10 +11,13 @@
 *.rlf
 *.sdb
 *.sym
-*.xml
 *.hex
 *.log
 *.mk
 *.properties
 /02_SW/01_Master-Controller.X/nbproject/*.mk
 /02_SW/01_Master-Controller.X/nbproject/*.properties
+/02_SW/01_Master-Controller.X/dist/default/debug/memoryfile.xml
+/02_SW/01_Master-Controller.X/dist/default/production/memoryfile.xml
+/02_SW/01_Master-Controller.X/nbproject/private/configurations.xml
+/02_SW/01_Master-Controller.X/nbproject/private/private.xml
