@@ -57,27 +57,23 @@ void main(void)
     // Initialize the device
     SYSTEM_Initialize();
     UART1_vInit();
-    
+    UART1_vBaudCalculator(HIGH_SPEED,115200u);
+    UART1_vUARTMode(ASYNC_8BIT);
+    UART1_vStopBitMode(ONE_STOP_BIT);
+    UART1_vTransmitPolarityControl(INVERTED);
 
     
+
+    uint8_t i = 7;
+    char a  = 's';
     while (1)
     {
-//        if(0x55 == UART1_uiReception())
-//        {
-//            MASK_8BIT_CLEAR_BIT(U1UIR, 6);
-//        }
-        //UART1_uiTransmitter(1);
-        //UART1_uiReception();
-        
-        UART1_uiTransmitter('h');
-        UART1_uiTransmitter('e');
-        UART1_uiTransmitter('l');
-        UART1_uiTransmitter('l');
-        UART1_uiTransmitter('o');
-        UART1_uiTransmitter('\n');
-        
-     
-       __delay_ms(10);
+
+        UART1_uiTransmitter(1);
+
+        __delay_ms(10);
+       
+
     }
 }
 /**
