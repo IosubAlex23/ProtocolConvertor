@@ -7,8 +7,6 @@
 /*----------------------------------------------------------------------------*/
 /*                                 Includes                                   */
 /*----------------------------------------------------------------------------*/
-#include <pic18f26k83.h>
-
 #include "I2C.h"
 /*----------------------------------------------------------------------------*/
 /*                               Local defines                                */
@@ -46,6 +44,7 @@
 #define I2C2_SET_ACKDT()                    (MASK_8BIT_CLEAR_BIT(I2C2CON1, I2C_ACKDT_POSITION))
 #define I2C2_SET_NACKDT()                   (MASK_8BIT_SET_BIT(I2C2CON1, I2C_ACKDT_POSITION))
 #define I2C2_RELEASE_CLOCK()                (MASK_8BIT_CLEAR_BIT(I2C2CON0, I2C_CSTR_POSTION))
+#define I2C2_PORT_MASK                      (0x0C)
 /*----------------------------------------------------------------------------*/
 /*                              Local data types                              */
 
@@ -94,19 +93,20 @@ void I2C_vInit(void)
     I2C2CLK = 0x03;
     MASK_8BIT_SET_BIT(I2C1STAT1, 2);
     // de aici in jos is copy paste de pe proj vechi
-    TRISC &= ~0x18;
-    ANSELC &= ~0x18;
-    WPUC |= 0x18;
-    ODCONC |= 0x18;
+    TRISC &= ~I2C2_PORT_MASK;
+    ANSELC &= ~I2C2_PORT_MASK;
+    WPUC |= I2C2_PORT_MASK;
+    ODCONC |= I2C2_PORT_MASK;
 
-    RC3I2C = 0x61; /* pULL uP, Slew Rate & Threshold */
-    RC4I2C = 0x61; /* pULL uP, Slew Rate & Threshold */
+    //    RC3I2C = 0x61; /* pULL uP, Slew Rate & Threshold */
+    //    RC2I2C = 0x61; /* pULL uP, Slew Rate & Threshold */
 
     RC3PPS = 0x23; /* Selecting which module outputs on RC3 */
-    RC4PPS = 0x24; /* Selecting which module outputs on RC4 */
+    RC2PPS = 0x24; /* Selecting which module outputs on RC2 */
 
-    I2C2SDAPPS = 0x14; /* Feeding I2C1SDA from pin RC4 */
+    I2C2SDAPPS = 0x12; /* Feeding I2C1SDA from pin RC2 */
     I2C2SCLPPS = 0x13; /* Feeding I2C1SCL from pin RC3 */
+    
 }
 
 void I2C_vMasterTransmit(uint8_t targetAdress, uint8_t targetRegister, uint8_t dataToBeSent)
@@ -182,19 +182,37 @@ void I2C_vJoinAsSlave(uint8_t adresssAsSlave)
     I2C2_vModuleEnable();
 }
 
-uint8_t I2C_vSlaveRead(void)
+uint8_t I2C_vSlaveMainFunction(void)
 {
     uint8_t returnValue = 0x00;
-    I2C2_SET_CNT_VALUE(0x01);
+    I2C2_SET_CNT_VALUE(0xFF);
     if (1u == I2C2_IS_SLAVE_ACTIVE())
     {
 
         /* if == 0 it means the last byte was an address*/
         if (0u == I2C2_LAST_BYTE_IS_DATA())
         {
-            if (I2C2ADB0 == I2C2ADR0)
+            if (I2C2ADR0 == (I2C2ADB0 & 0xFE))
             {
                 I2C2_SET_ACKDT();
+                /* If master wants to read from slave put data in TXB*/
+                if (1u == I2C2_IS_READ_REQUEST())
+                {
+                    while (0u == I2C2_IS_TXB_EMPTY())
+                    {
+                        I2C2_RELEASE_CLOCK();
+                    }
+                    I2C2_WRITE_TXB(0x8A);
+                }
+                    /* If master wants to write to slave read data from RXB */
+                else if (0u == I2C2_IS_READ_REQUEST())
+                {
+                    while (0u == I2C2_IS_RXB_FULL())
+                    {
+                        I2C2_RELEASE_CLOCK();
+                    }
+                    returnValue = I2C2RXB;
+                }
             }
             else
             {
@@ -202,24 +220,30 @@ uint8_t I2C_vSlaveRead(void)
             }
             I2C2_RELEASE_CLOCK();
         }
+            /* Last byte was data */
         else
         {
+            /* If master wants to read from slave put data in TXB*/
             if (1u == I2C2_IS_READ_REQUEST())
             {
-
-            }
-            else
-            {
-                while (0u == I2C2_IS_RXB_FULL())
+                if (1u == I2C2_IS_TXB_EMPTY())
                 {
-                    I2C2_RELEASE_CLOCK();
+                    I2C2_WRITE_TXB(0x8A); /* Writing to this will let stop clock stretching */
                 }
-                returnValue = I2C2RXB;
+            }
+                /* If master wants to write to slave read data from RXB */
+            else if (0u == I2C2_IS_READ_REQUEST())
+            {
+                if (1u == I2C2_IS_RXB_FULL())
+                {
+                    returnValue = I2C2RXB;
+                }
             }
         }
 
-        return returnValue;
     }
+    
+        return returnValue;
 }
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of local functions                      */

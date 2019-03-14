@@ -40,14 +40,12 @@
     OF FEES, IF ANY, THAT YOU HAVE PAID DIRECTLY TO MICROCHIP FOR THIS 
     SOFTWARE.
  */
-
-#include <pic18.h>
-
 #include "../mcc_generated_files/mcc.h"
 #include "../02_MCAL/GPIO/GPIO.h"
 #include "../02_MCAL/TIMER0/Timer0.h"
 #include "TimeoutModule/TimeoutModule.h"
 #include "../02_MCAL/I2C/I2C.h"
+#include "../02_MCAL/CAN/CAN.h"
 
 /*
                          Main application
@@ -58,6 +56,7 @@ void main(void)
     SYSTEM_Initialize();
     TimeoutModule_vInit();
     I2C_vInit();
+    CAN_vInit();
 
     uint8_t cnt;
 
@@ -65,40 +64,48 @@ void main(void)
     //    __delay_us(400);
     //    I2C_vMasterTransmit(0x08, 0x36, cnt);
 
-    GPIO_vSetPinDirection(0xA4, GPIO_OUTPUT_PIN);
-    //    GPIO_vSetPinDirection(0xA5, GPIO_INPUT_PIN);
-    GPIO_vSetPinLevel(0xA4, STD_LOW);
     //    GPIO_vSetPinDirection(0xB3, GPIO_OUTPUT_PIN);
     //    RB3PPS = 0x25;
     //    uint8_t flag = 0;
     //    STD_LogicLevel state = STD_LOW;
-    I2C_vJoinAsSlave(0x08);
-    uint8_t val;
+    //    I2C_vJoinAsSlave(0x08);
+    uint8_t state[8] = "Sal Alex";
+    CAN_Frame frame;
+    
+    CAN_vFrameSetData(&frame, state, 8);
+    frame.Frame_Identifier = 0x64;
+    frame.Frame_RTR = false;
+
+
+    CAN_vTransmitFrame(frame);
     while (1)
     {
-        val = I2C_vSlaveRead();
-        if ((0x10 > val) && val != 0x00)
+       /* if(TXB0CON == 0x18)
         {
-            GPIO_vSetPinLevel(0xA4, STD_HIGH);
-        }
-        else
-        {
-            GPIO_vSetPinLevel(0xA4, STD_LOW);
-        }
-        //        if ((GPIO_ui8GetPinLevel(0xA5) == STD_HIGH) || (TimeoutModule_uiSetTimeout(TIMEOUT_uS, 100) == TIMEOUT_REACHED))
+            CANCON |= 0x10;
+        }*/
+        //        val = I2C_vSlaveMainFunction();
+        //        if ((0x10 > val) && val != 0x00)
         //        {
-        //            if(state == STD_LOW)
+        //            GPIO_vSetPinLevel(0xA4, STD_HIGH);
+        //        }
+        //        else
+        //        {
+        //            GPIO_vSetPinLevel(0xA4, STD_LOW);
+        //        }
+        //        if ((GPIO_ui8GetPinLevel(0xA4) == STD_HIGH) || (TimeoutModule_uiSetTimeout(TIMEOUT_uS, 600) == TIMEOUT_REACHED))
+        //        {
+        //            if (state == STD_LOW)
         //            {
         //                state = STD_HIGH;
         //            }
-        //            else if(state == STD_HIGH)
+        //            else if (state == STD_HIGH)
         //            {
         //                state = STD_LOW;
         //            }
-        //            GPIO_vSetPinLevel(0xA4, state);
-        //            flag = 1;
-
-        //        if(I2C2_GET)
+        //            GPIO_vSetPinLevel(0xA5, state);
+        //
+        //        }
     }
 }
 

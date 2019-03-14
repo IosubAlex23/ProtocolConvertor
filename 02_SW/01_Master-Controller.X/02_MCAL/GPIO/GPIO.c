@@ -47,6 +47,50 @@
 /*                     Implementation of global functions                     */
 
 /*----------------------------------------------------------------------------*/
+void GPIO_vSetPinOpenDrain(GPIO_tPortPin targetPin, bool openDrainStatus)
+{
+    uint8_t port = MASK_8BIT_GET_MSB_HALF(targetPin);
+    uint8_t pin = MASK_8BIT_GET_LSB_HALF(targetPin);
+    switch (port)
+    {
+        case 0xA:
+            if (true == openDrainStatus)
+            {
+                /* Setting a bit in PORTx will drive the pin high */
+                MASK_8BIT_SET_BIT(ODCONA, pin);
+            }
+            else
+            {
+                /* Clearing a bit in PORTx will drive the pin low */
+                MASK_8BIT_CLEAR_BIT(ODCONA, pin);
+            }
+            break;
+        case 0xB:
+            if (true == openDrainStatus)
+            {
+                /* Setting a bit in PORTx will drive the pin high */
+                MASK_8BIT_SET_BIT(ODCONB, pin);
+            }
+            else
+            {
+                /* Clearing a bit in PORTx will drive the pin low */
+                MASK_8BIT_CLEAR_BIT(ODCONB, pin);
+            }
+            break;
+        case 0xC:
+            if (true == openDrainStatus)
+            {
+                /* Setting a bit in PORTx will drive the pin high */
+                MASK_8BIT_SET_BIT(ODCONC, pin);
+            }
+            else
+            {
+                /* Clearing a bit in PORTx will drive the pin low */
+                MASK_8BIT_CLEAR_BIT(ODCONC, pin);
+            }
+            break;
+    }
+}
 void GPIO_vSetPinDirection(GPIO_tPortPin targetPin, GPIO_tPinDirectionType pinDirection)
 {
     uint8_t port = MASK_8BIT_GET_MSB_HALF(targetPin);

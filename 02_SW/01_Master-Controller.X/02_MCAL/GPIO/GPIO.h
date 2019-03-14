@@ -37,6 +37,15 @@ typedef enum {
 /*                  External declaration of global functions                  */
 /*----------------------------------------------------------------------------*/
 /**
+ * \brief     This function enables / disables Open-Drain on a pin;
+ * \param     targetPin - 8bits value, ex: 0xC3 = PORT C, pin 3;
+ *            openDrainStatus - if true: Output drives only low-going signals (sink current only)
+ *                              if false: 0 = Output drives both high-going and low-going signals (source and sink current)
+ * \return    None 
+ */
+void GPIO_vSetPinOpenDrain(GPIO_tPortPin targetPin, bool openDrainStatus);
+
+/**
  * \brief     This function sets the direction of the pin;
  * \param     targetPin - 8bits value, ex: 0xC3 = PORT C, pin 3;
  * \return    None 
