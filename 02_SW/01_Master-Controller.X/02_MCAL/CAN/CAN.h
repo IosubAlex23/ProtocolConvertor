@@ -48,6 +48,19 @@ typedef enum {
     CAN_EXTENDED_FRAME
 } CAN_FrameType;
 
+typedef enum {
+    CAN_20KBITS = 0u,
+    CAN_50KBITS,
+    CAN_80KBITS,
+    CAN_100KBITS,
+    CAN_125KBITS,
+    CAN_200KBITS,
+    CAN_250KBITS,
+    CAN_500KBITS,
+    CAN_800KBITS,
+    CAN_1MBIT,
+} CAN_BaudRate;
+
 typedef struct {
     uint32_t Frame_Identifier;
     bool Frame_RTR;
@@ -59,8 +72,9 @@ typedef struct {
 typedef struct {
     CAN_FunctionalMode Module_FunctionalMode;
     CAN_OperationMode Module_OperationMode;
-    CAN_FrameType     Module_FrameType;
-    uint8_t           Module_ReceiveFIFO_Size;
+    CAN_FrameType Module_FrameType;
+    CAN_BaudRate Module_BaudRate;
+    uint8_t Module_ReceiveFIFO_Size;
 } CAN_Configuration;
 /*----------------------------------------------------------------------------*/
 /*                 External declaration of global RAM-Variables               */
@@ -73,7 +87,7 @@ typedef struct {
 /*----------------------------------------------------------------------------*/
 /*                  External declaration of global functions                  */
 /*----------------------------------------------------------------------------*/
-void CAN_vInit();
+void CAN_vInit(CAN_Configuration * config);
 
 /**
  * \brief     This function writes data to a transmit buffer.

@@ -162,10 +162,10 @@ void CAN_vSetRxProgrammableBuffers(uint8_t number_of_rx_buffers);
 uint8_t CAN_vFindBufferReadyForTransfer();
 /**
  * \brief     This function sets the baud rate on the CAN BUS
- * \param     None
+ * \param     baudRate - desired baud
  * \return    None; 
  */
-void CAN_vSetBaudRate();
+void CAN_vSetBaudRate(CAN_BaudRate * baudRate);
 /**
  * \brief     This function requests a transmission on CAN BUS
  * \param     None
@@ -182,7 +182,7 @@ void CAN_vRequestTransceiverNormalMode();
 /*                     Implementation of global functions                     */
 
 /*----------------------------------------------------------------------------*/
-void CAN_vInit(CAN_Configuration config)
+void CAN_vInit(CAN_Configuration * config)
 {
     CAN_vRequestTransceiverNormalMode();
     /* Preparing the TX, RX and programmable buffers
@@ -204,16 +204,12 @@ void CAN_vInit(CAN_Configuration config)
 
 
     /* B = 1101 => 1 = PORTB; 101 = PIN 5  */
-    //CANRXPPS = 0x0D;
     CANRXPPS = 0x0C;
     GPIO_vSetPinDirection(0xB4, GPIO_INPUT_PIN);
     /* Route CAN0 to RB4 & set as OUTPUT */
     /* 0x34 = CANTX1; 0x33 = CANTX0; */
     RB5PPS = 0x33;
     GPIO_vSetPinDirection(0xB5, GPIO_OUTPUT_PIN);
-
-    GPIO_vSetPinDirection(0xB3, GPIO_OUTPUT_PIN);
-    RB3PPS = 0x34;
 
     CAN_vRequestOperationMode(CAN_CONFIGURATION_OPERATION_MODE);
     /* Poplaca style, should be removed */
@@ -233,41 +229,93 @@ void CAN_vInit(CAN_Configuration config)
     /* End of Poplaca */
 
     /* Configuring buffers based on Module_ReceiveFIFO_Size */
-    CAN_vSetRxProgrammableBuffers(config.Module_ReceiveFIFO_Size);
-    CAN_vSetFunctionalMode(CAN_ENHANCED_FIFO_FUNCTIONAL_MODE);
-    CAN_vSetBaudRate();
+    CAN_vSetRxProgrammableBuffers(config->Module_ReceiveFIFO_Size);
+    CAN_vSetFunctionalMode(config->Module_FunctionalMode);
+    CAN_vSetBaudRate(&(config->Module_BaudRate));
     /* Filters & Masks*/
-    CAN_vRequestOperationMode(CAN_NORMAL_OPERATION_MODE);
+    CAN_vRequestOperationMode(config->Module_OperationMode);
 }
 
-void CAN_vSetBaudRate()
+void CAN_vSetBaudRate(CAN_BaudRate * baudRate)
 {
     /* 
      * Setting up the baud rate register:
      * Clock taken from System Clock (16MHz)
      * Baud rate: 50kb/s
      * Sampling Point: 80%
-     */
-    CIOCON = 0x80;
-    /* 
+     * 
+     * BRGCON1 register: 
      * BRGCON1[7:6] - SJW<1:0>: Synchronized Jump Width bits 00 = Synchronization jump width time = 1 x TQ 
-     * BRGCON1[5:0] - BRP<5:0>: Baud Rate Prescaler bits = 00_1111 = TQ = (2 x 15+1)/64
+     * BRGCON1[5:0] - BRP<5:0>: Baud Rate Prescaler bits = 00_1111 = TQ = (2 x 15+1)/16
      */
-    BRGCON1 = 0x0F;
-    /* 
+    /*  BRGCON2 register:
      * bit 7 SEG2PHTS: Phase Segment 2 Time Select bit: 1 = Freely programmable
      * bit 6 SAM: Sample of the CAN bus Line bit: 0 = Bus line is sampled once at the sample point
      * bit 5-3 SEG1PH<2:0>: Phase Segment 1 bits: 101 = Phase Segment 1 time = 5 x TQ
      * bit 2-0 PRSEG<2:0>: Propagation Time Select bits: 000 = Propagation time = 1 x TQ
      */
-    BRGCON2 = 0xA8;
-    /* 
+    /* BRGCON3 register:
      * bit 7 WAKDIS: Wake-up Disable bit: 0 = Enable CAN bus activity wake-up feature
      * bit 6 WAKFIL: Selects CAN bus Line Filter for Wake-up bit: 0 = CAN bus line filter is not used for wake-up
      * bit 5-3 Unimplemented: Read as ?0?
      * bit 2-0 SEG2PH<2:0>: Phase Segment 2 Time Select bits: 001 = Phase Segment 2 time = 2 x TQ
      */
-    BRGCON3 = 0x01;
+
+    CIOCON = 0x80;
+    switch (*baudRate)
+    {
+        case CAN_20KBITS:
+            BRGCON1 = 0x27;
+            BRGCON2 = 0xA8;
+            BRGCON3 = 0x01;
+            break;
+        case CAN_50KBITS:
+            BRGCON1 = 0x0F;
+            BRGCON2 = 0xA8;
+            BRGCON3 = 0x01;
+            break;
+        case CAN_80KBITS:
+            BRGCON1 = 0x09;
+            BRGCON2 = 0xA8;
+            BRGCON3 = 0x01;
+            break;
+        case CAN_100KBITS:
+            BRGCON1 = 0x07;
+            BRGCON2 = 0xA8;
+            BRGCON3 = 0x01;
+            break;
+        case CAN_125KBITS:
+            BRGCON1 = 0x07;
+            BRGCON2 = 0x98;
+            BRGCON3 = 0x01;
+            break;
+        case CAN_200KBITS:
+            BRGCON1 = 0x04;
+            BRGCON2 = 0x98;
+            BRGCON3 = 0x01;
+            break;
+        case CAN_250KBITS:
+            BRGCON1 = 0x03;
+            BRGCON2 = 0x98;
+            BRGCON3 = 0x01;
+            break;
+        case CAN_500KBITS:
+            BRGCON1 = 0x01;
+            BRGCON2 = 0x98;
+            BRGCON3 = 0x01;
+            break;
+        case CAN_800KBITS:
+            BRGCON1 = 0x00;
+            BRGCON2 = 0xA8;
+            BRGCON3 = 0x01;
+            break;
+        case CAN_1MBIT:
+            BRGCON1 = 0x00;
+            BRGCON2 = 0x98;
+            BRGCON3 = 0x01;
+            break;
+    }
+
 }
 
 void CAN_vTransmitFrame(CAN_Frame frame)
@@ -505,7 +553,7 @@ void CAN_vRequestTransceiverNormalMode()
 void CAN_vFrameSetData(CAN_Frame * frame, uint8_t * dataBytes, uint8_t numberOfDataBytes)
 {
     uint8_t loop_index = 0;
-    for(loop_index = 0; loop_index < numberOfDataBytes; loop_index++)
+    for (loop_index = 0; loop_index < numberOfDataBytes; loop_index++)
     {
         frame->Frame_DataLength = numberOfDataBytes;
         frame->Frame_DataBytes[loop_index] = dataBytes[loop_index];
