@@ -64,9 +64,9 @@ void UART1_vInit(void)
 
 void UART1_uiTransmitter(uint8_t valSend)
 {   
-    while(STD_LOW == TX1_INTERRUPT_FLAG) // TX complete
-    {
-    }
+//    while(STD_LOW == TX1_INTERRUPT_FLAG) // TX complete
+//    {
+//    }
     U1TXB = valSend; 
 }
 

@@ -29,8 +29,13 @@
 #define RESET_VALUE             (0x00u)  //UART2 Module RESET Value MASK
 #define LSB_MASK                (0xF0u)  //UART2 Module LSB Mask
 #define STOP_BITS_MASK          (0xCFu)
-#define POLARITY_BIT_MASK       (0xFBu) // 0x04
+#define POLARITY_BIT_MASK       (0xFBu)  // 0x04
 #define FLOW_CONTROL_BITS_MASK  (0xFCu)
+
+#define UART2_TX_EN         (5u)
+#define UART2_RX_EN         (4u)
+#define UART2_ENABLE        (7u)
+#define UART2_C0EN          (3u)
 
 /*----------------------------------------------------------------------------*/
 /*                                 Data types                                 */

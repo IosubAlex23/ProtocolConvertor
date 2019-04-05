@@ -8,7 +8,6 @@
 /*                                 Includes                                   */
 /*----------------------------------------------------------------------------*/
 #include "UART2.h"
-#include "../GPIO/GPIO.h"
 
 /*----------------------------------------------------------------------------*/
 /*                               Local defines                                */
@@ -16,6 +15,7 @@
 #define TX2_IS_ENABLE        (MASK_8BIT_GET_BIT(U2CON0,5))   // Transmit Enable bit
 #define TX2_INTERRUPT_FLAG   (MASK_8BIT_GET_BIT(PIR7,5))     // UART2 Transmit Interrupt Flag bit   
 #define RX2_INTERRUPT_FLAG   (MASK_8BIT_GET_BIT(PIR7,4))     // UART2 Receive Interrupt Flag bit
+
 /*----------------------------------------------------------------------------*/
 /*                              Local data types                              */
 /*----------------------------------------------------------------------------*/
@@ -62,7 +62,7 @@ void UART2_vInit(void)
     U2UIR = RESET_VALUE;
     U2FIFO = RESET_VALUE;
     U2BRG = DEFAULT_BAUDRATE;
-    U2P1 = RESET_VALUE;
+    U2P1L = 0x01;
     U2P2 = RESET_VALUE;
     U2P3 = RESET_VALUE;
     U2TXCHK  = RESET_VALUE;
@@ -165,4 +165,5 @@ bool UART2_bTX_Ready()
 {
     return (bool)(TX2_INTERRUPT_FLAG && TX2_IS_ENABLE);
 }
+
         

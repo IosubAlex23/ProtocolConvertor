@@ -15,6 +15,7 @@
 
 #include "../../03_Common/types.h"
 #include "UartTypes.h"
+#include "../GPIO/GPIO.h"
 /*----------------------------------------------------------------------------*/
 /*                             Defines and macros                             */
 /*----------------------------------------------------------------------------*/
@@ -51,7 +52,7 @@ void UART2_uiTransmitter(uint8_t valSend);
 /**
  * \brief     This function is used for receive values on UART Asynchronous Receiver
  * \param    
- * \return    None 
+ * \return    returns the value received in the U2RXB register 
  */
 uint8_t UART2_uiReception();
 
