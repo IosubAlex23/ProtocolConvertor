@@ -97,12 +97,12 @@ void Timer0_vStart(Timer_Configuration config)
     TIMER_ENABLE();
 }
 
-void Timer0_vStop()
+void Timer0_vStop(void)
 {
     TIMER_DISABLE();
 }
 
-bool Timer0_bWasOverflow()
+bool Timer0_bWasOverflow(void)
 {
     bool returnValue = false;
     if (PIR3bits.TMR0IF == 1)

@@ -25,10 +25,16 @@
 #define CAN_SIDH_EXTENDED_POSITION              (21u)
 #define CAN_EXIDE_POSITION                      (3u)
 #define CAN_RTR_POSITION                        (6u)
+#define CAN_FIFO_EMPTY_POSITION                 (7u)
+#define CAN_RXFUL_POSITION                      (7u)
+
+#define CAN_EXTENDED_SIDL_3MSB_BITS             (3u)
+#define CAN_EXTENDED_SIDL_2MSB_BITS             (2u)
 
 #define CAN_SIDL_EXTENDED_MASK1                 (0x03)
 #define CAN_SIDL_EXTENDED_MASK2                 (0xE0)
 #define CAN_REQOP_CLEAR_MASK                    (0x1F)
+#define CAN_MASK_GET_FIFO_POINTER               (0x0F)               
 
 #define CAN_TRANSMITTER_BUS_MODE_MASK           (0x34)
 #define CAN_TRANSMITTER_BUS_ACTIVE_VALUE        (0x00)
@@ -42,10 +48,6 @@
 #define CAN_RECEIVER_BUS_PASSIVE_VALUE       (0x08)
 
 #define CAN_MAX_PROGRAMMABLE_BUFFERS         (6u)
-
-#define CAN_NUMBER_OF_RXBF                   (2u)
-#define CAN_NUMBER_OF_TXBF                   (3u)
-#define CAN_NUMBER_OF_PROGRAMMABLE_BUFFERS   (6u)
 
 #define CAN_PROGRAMMABLE_BUFFER_FLAG_VALUE   (0x10)
 #define CAN_TXPRI_MASK                       (0x03)
@@ -69,18 +71,6 @@ typedef enum
     CAN_BUSS_OFF_MODE,
 } CAN_ErrorMode;
 
-typedef struct
-{
-    uint8_t BxCON;
-    uint8_t BxSIDH;
-    uint8_t BxSIDL;
-    uint8_t BxEIDH;
-    uint8_t BxEIDL;
-    uint8_t BxDLC;
-    uint8_t BxData[8];
-    uint8_t BxCANSTAT;
-    uint8_t BxCANCON;
-} CAN_Buffer;
 /*----------------------------------------------------------------------------*/
 /*                             Global data at RAM                             */
 /*----------------------------------------------------------------------------*/
@@ -109,7 +99,7 @@ static uint8_t CAN_NumberOfReceiveBuffers;
  * \param     None
  * \return    None 
  */
-CAN_OperationMode CAN_uiGetOperationMode();
+CAN_OperationMode CAN_uiGetOperationMode(void);
 /**
  * \brief     This function requests an operation mode and waits for it to be set;
  * \param     None
@@ -128,7 +118,7 @@ void CAN_vSetFunctionalMode(CAN_FunctionalMode mode);
  * \param     None
  * \return    CAN_ErrorMode; 
  */
-CAN_ErrorMode CAN_uiGetTransmitterErrorMode();
+CAN_ErrorMode CAN_uiGetTransmitterErrorMode(void);
 
 /**
  * \brief     This function returns one of the three error states; ?error-active?, ?error-passive? or 
@@ -136,7 +126,7 @@ CAN_ErrorMode CAN_uiGetTransmitterErrorMode();
  * \param     None
  * \return    CAN_ErrorMode; 
  */
-CAN_ErrorMode CAN_uiGetReceiverErrorMode();
+CAN_ErrorMode CAN_uiGetReceiverErrorMode(void);
 
 /**
  * \brief     This function sets the identifier registers according to the standard / extended mode
@@ -147,7 +137,7 @@ void CAN_vSetIdentifier(CAN_Frame * frame, CAN_Buffer * buffer);
 
 /**
  * \brief     This function sets the number of Receive buffers to number_of_rx_buffers;
- *                               the number of Transmit buffers will be 6-number_of_rx_buffers;
+ *                               the number of Transmit buffers will be 6-number_of_rx_buffers + 3 default buffers;
  *              Be advised, to the number of buffers selected are added 2 more buffers that are available by default: RXB0 and RXB1
  * \param     None
  * \return    None; 
@@ -159,7 +149,7 @@ void CAN_vSetRxProgrammableBuffers(uint8_t number_of_rx_buffers);
  * \param     None
  * \return    None; 
  */
-uint8_t CAN_vFindBufferReadyForTransfer();
+uint8_t CAN_vFindBufferReadyForTransfer(void);
 /**
  * \brief     This function sets the baud rate on the CAN BUS
  * \param     baudRate - desired baud
@@ -177,7 +167,7 @@ void CAN_vRequestTransmissionFromBuffer(CAN_Buffer * target);
  * \param     None
  * \return    None; 
  */
-void CAN_vRequestTransceiverNormalMode();
+void CAN_vRequestTransceiverNormalMode(void);
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of global functions                     */
 
@@ -359,6 +349,112 @@ void CAN_vTransmitFrame(CAN_Frame frame)
     /* Requesting the transmission */
     CAN_vRequestTransmissionFromBuffer(selectedBuffer);
 }
+
+uint8_t CAN_uiGetFIFOReadPointer()
+{
+    /*uint8_t bufferIndex;
+    uint8_t returnValue = CAN_NO_DATA_RECEIVED_BUFFER;
+    for (bufferIndex = 0; bufferIndex < CAN_NumberOfReceiveBuffers; bufferIndex++)
+    {
+        if (bufferIndex < CAN_NUMBER_OF_RXBF)
+        {
+            if ((MASK_8BIT_GET_BIT(CAN_TransmitBuffers[bufferIndex]->BxCON, CAN_RXFUL_POSITION)) == 1)
+            {
+                returnValue = bufferIndex;
+                break;
+            }
+        }
+        else
+        {
+            if ((MASK_8BIT_GET_BIT(CAN_ProgrammableBuffers[(bufferIndex - CAN_NUMBER_OF_RXBF)]->BxCON, CAN_RXFUL_POSITION)) == 1)
+            {
+                returnValue = bufferIndex;
+                break;
+            }
+        }
+    }
+    return returnValue;*/
+    return (CANCON & CAN_MASK_GET_FIFO_POINTER);
+}
+
+uint32_t CAN_uiGetRxBufferIdentifier(uint8_t * bufferID)
+{
+    uint32_t returnValue;
+    if (*bufferID < CAN_NUMBER_OF_RXBF)
+    {
+        returnValue = CAN_uiGetIdentifier(CAN_ReceiveBuffers[*bufferID]);
+    }
+    else
+    {
+        /* RX Buffers are the first of the programmable buffers, after them the TX buffers comes */
+        returnValue = CAN_uiGetIdentifier(CAN_ProgrammableBuffers[(*bufferID) - CAN_NUMBER_OF_RXBF]);
+    }
+    return returnValue;
+}
+
+CAN_Buffer * CAN_uiGetBufferAdrress(uint8_t * bufferID)
+{
+    CAN_Buffer * returnValue;
+    if (*bufferID < CAN_NUMBER_OF_RXBF)
+    {
+        returnValue = CAN_ReceiveBuffers[*bufferID];
+    }
+    else
+    {
+        /* RX Buffers are the first of the programmable buffers, after them the TX buffers comes */
+        returnValue = CAN_ProgrammableBuffers[(*bufferID) - CAN_NUMBER_OF_RXBF];
+    }
+    return returnValue;
+}
+
+uint32_t CAN_uiGetIdentifier(CAN_Buffer * buffer)
+{
+    uint32_t returnValue = 0;
+    if (CAN_ModuleConfiguration.Module_FrameType == CAN_EXTENDED_FRAME)
+    {
+        /* Adding the most significant 8 bits */
+        returnValue |= buffer->BxSIDH;
+        returnValue = returnValue << CAN_EXTENDED_SIDL_3MSB_BITS;
+        /* Adding bits 20-18 of the identifier */
+        returnValue |= (buffer->BxSIDL >> CAN_SID0_POSITION);
+        returnValue = returnValue << CAN_EXTENDED_SIDL_2MSB_BITS;
+        /* Adding bits 17-16 of the identifier */
+        returnValue |= (buffer->BxSIDL & CAN_SIDL_EXTENDED_MASK1);
+        returnValue = returnValue << REGISTER_NUMBER_OF_BITS;
+        /* Adding next 8 bits */
+        returnValue |= buffer->BxEIDH;
+        returnValue = returnValue << REGISTER_NUMBER_OF_BITS;
+        /* Adding last 8 bits */
+        returnValue |= buffer->BxEIDL;
+    }
+    else if (CAN_ModuleConfiguration.Module_FrameType == CAN_STANDARD_FRAME)
+    {
+
+        /* Adding the most significant 8 bits */
+        returnValue |= buffer->BxSIDH;
+        returnValue = returnValue << CAN_EXTENDED_SIDL_3MSB_BITS;
+        /* Adding bits 2-0 of the identifier */
+        returnValue |= (buffer->BxSIDL >> CAN_SID0_POSITION);
+    }
+    return returnValue;
+}
+
+void CAN_vSetBufferAsFree(CAN_Buffer * target)
+{
+    MASK_8BIT_CLEAR_BIT(target->BxCON, CAN_RXFUL_POSITION);
+}
+
+bool CAN_bBufferHasNewData(CAN_Buffer * target)
+{
+    bool returnValue = false;
+    returnValue = MASK_8BIT_GET_BIT(target->BxCON, CAN_RXFUL_POSITION);
+    return returnValue;
+}
+
+uint8_t CAN_uiGetNumberOfReceiveBuffers(void)
+{
+    return (CAN_NUMBER_OF_RXBF + CAN_NumberOfReceiveBuffers);
+}
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of local functions                      */
 
@@ -372,16 +468,18 @@ void CAN_vRequestTransmissionFromBuffer(CAN_Buffer * target)
 void CAN_vSetRxProgrammableBuffers(uint8_t number_of_rx_buffers)
 {
     /* !(((2^number) - 1) << 2) Shift with 2 because BSEL0[0:1] are read only*/
-    uint8_t BSEL_value = (!(((1 << number_of_rx_buffers) - 1) << 2u));
+    uint8_t BSEL_value;
     if (CAN_MAX_PROGRAMMABLE_BUFFERS < number_of_rx_buffers)
-        return;
+    {
+        CAN_NumberOfReceiveBuffers = CAN_MAX_PROGRAMMABLE_BUFFERS;
+    }
     else
     {
-
         CAN_NumberOfReceiveBuffers = number_of_rx_buffers;
-        BSEL0 = BSEL_value;
     }
+    BSEL_value = (!(((1 << CAN_NumberOfReceiveBuffers) - 1) << 2u));
 
+    BSEL0 = BSEL_value;
 }
 
 CAN_OperationMode CAN_uiGetOperationMode()
@@ -414,8 +512,12 @@ void CAN_vRequestOperationMode(CAN_OperationMode mode)
 
 void CAN_vSetFunctionalMode(CAN_FunctionalMode mode)
 {
-
-    ECANCON = (mode << CAN_MDSEL_POSITION);
+    uint8_t ecancon_desiredValue = (mode << CAN_MDSEL_POSITION);
+    do
+    {
+        ECANCON = ecancon_desiredValue;
+    }
+    while (ECANCON != ecancon_desiredValue);
 }
 
 CAN_ErrorMode CAN_uiGetTransmitterErrorMode()
@@ -492,6 +594,7 @@ void CAN_vSetIdentifier(CAN_Frame * frame, CAN_Buffer * buffer)
     }
 }
 
+/* In the programmable buffers first are the receive buffers and after that comes transmit buffers */
 uint8_t CAN_vFindBufferReadyForTransfer()
 {
     uint8_t returnValue = 0xFF;
@@ -558,4 +661,14 @@ void CAN_vFrameSetData(CAN_Frame * frame, uint8_t * dataBytes, uint8_t numberOfD
         frame->Frame_DataLength = numberOfDataBytes;
         frame->Frame_DataBytes[loop_index] = dataBytes[loop_index];
     }
+}
+
+bool CAN_bFIFOContainsData()
+{
+    uint8_t FIFOcontainsData = MASK_8BIT_GET_BIT(COMSTAT, CAN_FIFO_EMPTY_POSITION);
+    if (FIFOcontainsData == 1)
+    {
+        MASK_8BIT_CLEAR_BIT(COMSTAT, CAN_FIFO_EMPTY_POSITION);
+    }
+    return FIFOcontainsData;
 }

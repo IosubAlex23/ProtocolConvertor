@@ -1,41 +1,56 @@
 /* 
- * File:   TimeoutModule.h
+ * File:   MainApplication.h
  * Author: Alex
  *
- * Created on February 16, 2019, 2:41 PM
+ * Created on March 19, 2019, 1:35 PM
  */
 
-#ifndef TIMEOUTMODULE_H
-#define	TIMEOUTMODULE_H
+#ifndef MAINAPPLICATION_H
+#define	MAINAPPLICATION_H
 
 /*----------------------------------------------------------------------------*/
 /*                                  Includes                                  */
 /*----------------------------------------------------------------------------*/
-#include "../../03_Common/types.h"
+#include "../../02_MCAL/GPIO/GPIO.h"
 #include "../../02_MCAL/TIMER0/Timer0.h"
+#include "../TimeoutModule/TimeoutModule.h"
+#include "../../02_MCAL/I2C/I2C.h"
+#include "../../02_MCAL/CAN/CAN.h"
 /*----------------------------------------------------------------------------*/
 /*                             Defines and macros                             */
 /*----------------------------------------------------------------------------*/
-
+#define MAX_BYTES_ON_TRANSACTION    (8u)
 /*----------------------------------------------------------------------------*/
 /*                                 Data types                                 */
+
 /*----------------------------------------------------------------------------*/
-typedef enum
-{
-    TIMEOUT_NOT_REACHED=0u,
-    TIMEOUT_REACHED,
-    TIMEOUT_IDLE,
-    TIMEOUT_ERROR,
-}TimeoutModule_State;
+typedef enum {
+    APP_CONFIGURATION_STATE = 0u,
+    APP_RUNNING_STATE,
+} MainApplication_State;
 
-/* The unit for the timeout: microseconds, milliseconds, seconds */
-typedef enum
-{
-    TIMEOUT_uS=0u, 
-    TIMEOUT_mS,
-    TIMEOUT_S,
-}TimeoutModule_MeasurementUnit;
+typedef enum {
+    APP_PROTOCOL_CAN = 0u,
+    APP_PROTOCOL_I2C,
+    APP_PROTOCOL_LIN,
+    APP_PROTOCOL_RS232,
+    APP_PROTOCOL_UNKNOWN,
+} MainAplication_Protocol;
 
+typedef struct {
+    /* This is the matched slave address or the identifier in the case of CAN / LIN protocols from where data was received*/
+    uint16_t Receiver;
+    MainAplication_Protocol TargetProtocol;
+    uint32_t TargetLocation;
+} MainApplication_LookUpTable;
+
+typedef struct {
+    uint32_t TargetLocation;
+    uint8_t Data[MAX_BYTES_ON_TRANSACTION];
+    uint8_t NextIndex;
+    bool ReadyForSending;
+    bool DataWasSent;
+} MainApplication_DataToBeSent;
 /*----------------------------------------------------------------------------*/
 /*                 External declaration of global RAM-Variables               */
 /*----------------------------------------------------------------------------*/
@@ -48,18 +63,10 @@ typedef enum
 /*                  External declaration of global functions                  */
 /*----------------------------------------------------------------------------*/
 /**
- * \brief     This function initializes the TimeoutModule;
+ * \brief     This function [...];
  * \param     None
  * \return    None 
  */
-void TimeoutModule_vInit(void);
-/**
- * \brief     This function is used when a timeout is needed; Can set timeout from 0 to 65535 microseconds or milliseconds
- * \param     timeAmount = the maximum number of 'unit' of timeout
- * \return    TimeoutModule_State - it says if timeout was or not reached or if there was an error 
- */
-TimeoutModule_State TimeoutModule_uiSetTimeout(TimeoutModule_MeasurementUnit unit, uint16_t timeAmount);
 
-TimeoutModule_State TimeoutModule_uiCancelTimeout(void);
-#endif	/* TIMEOUTMODULE_H */
+#endif	/* MAINAPPLICATION_H */
 

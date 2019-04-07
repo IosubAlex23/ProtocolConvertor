@@ -39,16 +39,18 @@
 
 #define MASK_16BIT_MAX_VALUE                                 (65535u)
 #define MASK_16BIT_MAX_COUNTS                                (65536u)
+
+#define REGISTER_NUMBER_OF_BITS                           (8u)
 /*----------------------------------------------------------------------------*/
 /*                                 Data types                                 */
+
 /*----------------------------------------------------------------------------*/
 
-typedef enum
-{
+typedef enum {
     STD_LOW = 0u,
     STD_HIGH,
     STD_UNKNOWN,
-}STD_LogicLevel;
+} STD_LogicLevel;
 
 /*----------------------------------------------------------------------------*/
 /*                 External declaration of global RAM-Variables               */

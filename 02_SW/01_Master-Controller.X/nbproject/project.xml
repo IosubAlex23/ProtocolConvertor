@@ -15,6 +15,7 @@
             <sourceRootList>
                 <sourceRootElem/>
                 <sourceRootElem>.</sourceRootElem>
+                <sourceRootElem>03_Common/BasicOperations</sourceRootElem>
             </sourceRootList>
             <confList>
                 <confElem>

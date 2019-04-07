@@ -81,7 +81,7 @@ typedef enum
 void I2C2_vWaitACK(void);
 void inline I2C2_vModuleDisable(void);
 void inline I2C2_vModuleEnable(void);
-bool I2C2_bStopDetected(void);
+uint16_t I2C2_uiGetMatchedAdress(void);
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of global functions                     */
 
@@ -91,7 +91,7 @@ void I2C_vInit(void)
     I2C2CON0 = 0x0C;
     I2C2CON2 = 0x20;
     I2C2CLK = 0x03;
-    MASK_8BIT_SET_BIT(I2C1STAT1, 2);
+    MASK_8BIT_SET_BIT(I2C1STAT1, I2C_CLRBF_POSITION);
     // de aici in jos is copy paste de pe proj vechi
     TRISC &= ~I2C2_PORT_MASK;
     ANSELC &= ~I2C2_PORT_MASK;
@@ -106,11 +106,12 @@ void I2C_vInit(void)
 
     I2C2SDAPPS = 0x12; /* Feeding I2C1SDA from pin RC2 */
     I2C2SCLPPS = 0x13; /* Feeding I2C1SCL from pin RC3 */
-    
+
 }
 
 void I2C_vMasterTransmit(uint8_t targetAdress, uint8_t targetRegister, uint8_t dataToBeSent)
 {
+    MASK_8BIT_SET_BIT(I2C2CON1, I2C_ACKCNT_POSITION);
     I2C2_vModuleEnable();
     I2C2_SET_CNT_VALUE(CNT_VALUE_SEND_DATA);
     //I2C2_SET_TARGER_ADR(targetAdress, I2C_OPERATION_WRITE);
@@ -182,13 +183,12 @@ void I2C_vJoinAsSlave(uint8_t adresssAsSlave)
     I2C2_vModuleEnable();
 }
 
-uint8_t I2C_vSlaveMainFunction(void)
+bool I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t * matchedAdress)
 {
-    uint8_t returnValue = 0x00;
-    I2C2_SET_CNT_VALUE(0xFF);
+    bool returnValue = false;
     if (1u == I2C2_IS_SLAVE_ACTIVE())
     {
-
+        I2C2_SET_CNT_VALUE(0xFF);
         /* if == 0 it means the last byte was an address*/
         if (0u == I2C2_LAST_BYTE_IS_DATA())
         {
@@ -211,7 +211,9 @@ uint8_t I2C_vSlaveMainFunction(void)
                     {
                         I2C2_RELEASE_CLOCK();
                     }
-                    returnValue = I2C2RXB;
+                    returnValue = true;
+                    *receivedData = I2C2RXB;
+                    *matchedAdress = I2C2_uiGetMatchedAdress();
                 }
             }
             else
@@ -236,14 +238,34 @@ uint8_t I2C_vSlaveMainFunction(void)
             {
                 if (1u == I2C2_IS_RXB_FULL())
                 {
-                    returnValue = I2C2RXB;
+                    returnValue = true;
+                    *receivedData = I2C2RXB;
+                    *matchedAdress = I2C2_uiGetMatchedAdress();
                 }
             }
         }
 
     }
-    
-        return returnValue;
+
+    return returnValue;
+}
+
+void I2C_vMasterTransmitBytes(uint8_t targetAdress, uint8_t * arrayWithData, uint8_t numberOfBytes)
+{
+    uint8_t index = 0;
+    I2C2_vModuleEnable();
+    I2C2_SET_CNT_VALUE(numberOfBytes);
+    I2C2_SET_TARGER_ADR(targetAdress, I2C_OPERATION_WRITE);
+
+    for (index = 0; index < numberOfBytes; index++)
+    {
+        while (0u == I2C2_IS_TXB_EMPTY())
+        {
+
+        }
+        I2C2_WRITE_TXB(arrayWithData[index]);
+        I2C2_SET_START();
+    }
 }
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of local functions                      */
@@ -254,14 +276,14 @@ void I2C2_vWaitACK(void)
     //while()
 }
 
-bool I2C2_bStopDetected(void)
+bool I2C_bStopDetected(void)
 {
     bool returnValue = false;
     if (1u == I2C2PIRbits.PCIF)
     {
         returnValue = true;
         I2C2PIRbits.PCIF = 0;
-        I2C2_vModuleDisable();
+        //I2C2_vModuleDisable();
     }
     return returnValue;
 }
@@ -277,4 +299,9 @@ void inline I2C2_vModuleEnable(void)
 void inline I2C2_vModuleDisable(void)
 {
     I2C2CON0bits.EN = 0;
+}
+
+uint16_t I2C2_uiGetMatchedAdress()
+{
+    return (I2C2ADB0 >> 1);
 }

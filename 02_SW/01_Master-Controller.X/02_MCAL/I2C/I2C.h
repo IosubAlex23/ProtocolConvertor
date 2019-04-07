@@ -42,8 +42,18 @@ void I2C_vJoinAsSlave(uint8_t adresssAsSlave);
 
 void I2C_vMasterTransmit(uint8_t targetAdress, uint8_t targetRegister, uint8_t dataToBeSent);
 
-void I2C_vMasterRead(uint8_t targetAdress, uint8_t targetRegister, uint8_t numberOfBytes, uint8_t * storingLocation);
+void I2C_vMasterTransmitBytes(uint8_t targetAdress, uint8_t * arrayWithData, uint8_t numberOfBytes);
 
-uint8_t I2C_vSlaveMainFunction(void);
+void I2C_vMasterRead(uint8_t targetAdress, uint8_t targetRegister, uint8_t numberOfBytes, uint8_t * storingLocation);
+/**
+ * \brief     This function is used to read received data by the slave from the RX buffer;
+ * \param     None
+ * \return    bool: true if new data was received - meaning that in *receivedData is a new value; 
+ *                  false if no new data was put at receivedData; 
+ */
+bool I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t * matchedAdress);
+
+bool I2C_bStopDetected(void);
+
 #endif	/* I2C_H */
 
