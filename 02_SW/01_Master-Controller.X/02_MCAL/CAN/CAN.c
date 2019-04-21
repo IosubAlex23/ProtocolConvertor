@@ -24,7 +24,8 @@
 #define CAN_SIDL_EXTENDED_POSITION2             (14u)
 #define CAN_SIDH_EXTENDED_POSITION              (21u)
 #define CAN_EXIDE_POSITION                      (3u)
-#define CAN_RTR_POSITION                        (6u)
+#define CAN_BxDLC_RTR_POSITION                  (6u)
+#define CAN_BxCON_RTR_POSITION                  (5u)
 #define CAN_FIFO_EMPTY_POSITION                 (7u)
 #define CAN_RXFUL_POSITION                      (7u)
 
@@ -168,6 +169,7 @@ void CAN_vRequestTransmissionFromBuffer(CAN_Buffer * target);
  * \return    None; 
  */
 void CAN_vRequestTransceiverNormalMode(void);
+
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of global functions                     */
 
@@ -334,11 +336,11 @@ void CAN_vTransmitFrame(CAN_Frame frame)
     /* Setting RTR */
     if (true == frame.Frame_RTR)
     {
-        MASK_8BIT_SET_BIT(selectedBuffer->BxDLC, CAN_RTR_POSITION);
+        MASK_8BIT_SET_BIT(selectedBuffer->BxDLC, CAN_BxDLC_RTR_POSITION);
     }
     else
     {
-        MASK_8BIT_CLEAR_BIT(selectedBuffer->BxDLC, CAN_RTR_POSITION);
+        MASK_8BIT_CLEAR_BIT(selectedBuffer->BxDLC, CAN_BxDLC_RTR_POSITION);
     }
     /* Putting data onto the buffer */
     for (index = 0; index < frame.Frame_DataLength; index++)
@@ -448,6 +450,13 @@ bool CAN_bBufferHasNewData(CAN_Buffer * target)
 {
     bool returnValue = false;
     returnValue = MASK_8BIT_GET_BIT(target->BxCON, CAN_RXFUL_POSITION);
+    return returnValue;
+}
+
+bool CAN_bBufferRequestsData(CAN_Buffer * target)
+{
+    bool returnValue = false;
+    returnValue = MASK_8BIT_GET_BIT(target->BxDLC, CAN_BxDLC_RTR_POSITION);
     return returnValue;
 }
 

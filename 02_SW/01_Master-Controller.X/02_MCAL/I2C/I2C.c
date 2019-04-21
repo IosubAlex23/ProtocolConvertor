@@ -138,7 +138,7 @@ void I2C_vMasterTransmit(uint8_t targetAdress, uint8_t targetRegister, uint8_t d
     I2C2_WRITE_TXB(dataToBeSent);
 }
 
-void I2C_vMasterRead(uint8_t targetAdress, uint8_t targetRegister, uint8_t numberOfBytes, uint8_t * storingLocation)
+void I2C_vMasterRead(uint8_t targetAdress, uint8_t numberOfBytes, uint8_t * storingLocation)
 {
     /* When the I2CxCNT = 0 the master will send NACK & STOP Condition */
     MASK_8BIT_SET_BIT(I2C2CON1, I2C_ACKCNT_POSITION);
@@ -157,7 +157,7 @@ void I2C_vMasterRead(uint8_t targetAdress, uint8_t targetRegister, uint8_t numbe
         {
 
         }
-        *storingLocation = I2C2_READ_RXB();
+        storingLocation[numberOfBytes - I2C2_GET_CNT_VALUE() - 1] = I2C2_READ_RXB();
         //        }
     }
 }
@@ -266,6 +266,11 @@ void I2C_vMasterTransmitBytes(uint8_t targetAdress, uint8_t * arrayWithData, uin
         I2C2_WRITE_TXB(arrayWithData[index]);
         I2C2_SET_START();
     }
+}
+
+bool I2C_bOperationWasARead(void)
+{
+    return I2C2_IS_READ_REQUEST();
 }
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of local functions                      */

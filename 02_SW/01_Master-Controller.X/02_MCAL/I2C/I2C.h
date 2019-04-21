@@ -44,7 +44,7 @@ void I2C_vMasterTransmit(uint8_t targetAdress, uint8_t targetRegister, uint8_t d
 
 void I2C_vMasterTransmitBytes(uint8_t targetAdress, uint8_t * arrayWithData, uint8_t numberOfBytes);
 
-void I2C_vMasterRead(uint8_t targetAdress, uint8_t targetRegister, uint8_t numberOfBytes, uint8_t * storingLocation);
+void I2C_vMasterRead(uint8_t targetAdress, uint8_t numberOfBytes, uint8_t * storingLocation);
 /**
  * \brief     This function is used to read received data by the slave from the RX buffer;
  * \param     None
@@ -54,6 +54,8 @@ void I2C_vMasterRead(uint8_t targetAdress, uint8_t targetRegister, uint8_t numbe
 bool I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t * matchedAdress);
 
 bool I2C_bStopDetected(void);
+
+bool I2C_bOperationWasARead(void);
 
 #endif	/* I2C_H */
 

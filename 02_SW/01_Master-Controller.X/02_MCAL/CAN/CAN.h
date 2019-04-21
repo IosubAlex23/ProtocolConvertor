@@ -183,4 +183,11 @@ bool CAN_bBufferHasNewData(CAN_Buffer * target);
  * \return    the number of buffers configured as receive
  */
 uint8_t CAN_uiGetNumberOfReceiveBuffers(void);
+
+/**
+ * \brief     This function requests data
+ * \param     None
+ * \return    None; 
+ */
+bool CAN_bBufferRequestsData(CAN_Buffer * target);
 #endif /* HEAD_H_ */
