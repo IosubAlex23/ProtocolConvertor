@@ -61,6 +61,8 @@
 #define CAN_TRANSCEIVER_NSIL_PORT_PIN        (0xA3)
 #define CAN_TRANSCEIVER_STBY_PORT_PIN        (0xA4)
 #define CAN_TRANSCEIVER_TX_PORT_PIN          (0xB4)
+
+
 /*----------------------------------------------------------------------------*/
 /*                              Local data types                              */
 
@@ -463,6 +465,38 @@ bool CAN_bBufferRequestsData(CAN_Buffer * target)
 uint8_t CAN_uiGetNumberOfReceiveBuffers(void)
 {
     return (CAN_NUMBER_OF_RXBF + CAN_NumberOfReceiveBuffers);
+}
+
+CAN_Buffer * CAN_uiGetResponseBufferByIdentifier(uint32_t targetIdentifier)
+{
+    CAN_Buffer * returnValue = NULL;
+    uint8_t index;
+    for (index = 0; index < CAN_NumberOfReceiveBuffers + CAN_NUMBER_OF_RXBF; index++)
+    {
+        if (index < CAN_NUMBER_OF_RXBF)
+        {
+            if (true == CAN_bBufferHasNewData(&CAN_ReceiveBuffers[index]))
+            {
+                if (targetIdentifier == CAN_uiGetIdentifier(CAN_ReceiveBuffers[index]))
+                {
+                    returnValue = &CAN_ReceiveBuffers[index];
+                    return returnValue;
+                }
+            }
+        }
+        else
+        {
+            if (true == CAN_bBufferHasNewData(&CAN_ProgrammableBuffers[index]))
+            {
+                if (targetIdentifier == CAN_uiGetIdentifier(CAN_ProgrammableBuffers[index]))
+                {
+                    returnValue = &CAN_ProgrammableBuffers[index];
+                    return returnValue;
+                }
+            }
+        }
+    }
+    return returnValue;
 }
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of local functions                      */

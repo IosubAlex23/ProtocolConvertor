@@ -37,10 +37,14 @@
 /* This returns the LS 8 bites of a byte */
 #define MASK_16BIT_GET_LSB_HALF(x)                       (x & MASK_8MSB_CLEAR)
 
+#define MASK_16BIT_SET_MSB_HALF(reg, x)                  (reg = (x << MASK_16BIT_HALF) | MASK_16BIT_GET_LSB_HALF(reg))     
+
 #define MASK_16BIT_MAX_VALUE                                 (65535u)
 #define MASK_16BIT_MAX_COUNTS                                (65536u)
 
 #define REGISTER_NUMBER_OF_BITS                           (8u)
+
+#define RESET_VALUE                                       (0x00)
 /*----------------------------------------------------------------------------*/
 /*                                 Data types                                 */
 

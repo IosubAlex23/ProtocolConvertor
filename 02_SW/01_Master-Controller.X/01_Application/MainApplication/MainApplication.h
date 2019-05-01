@@ -13,9 +13,11 @@
 /*----------------------------------------------------------------------------*/
 #include "../../02_MCAL/GPIO/GPIO.h"
 #include "../../02_MCAL/TIMER0/Timer0.h"
+#include "../../02_MCAL/TIMER2/Timer2.h"
 #include "../TimeoutModule/TimeoutModule.h"
 #include "../../02_MCAL/I2C/I2C.h"
 #include "../../02_MCAL/CAN/CAN.h"
+#include "../../02_MCAL/SPI/SPI.h"
 /*----------------------------------------------------------------------------*/
 /*                             Defines and macros                             */
 /*----------------------------------------------------------------------------*/

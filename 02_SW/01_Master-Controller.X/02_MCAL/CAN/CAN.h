@@ -81,8 +81,7 @@ typedef struct {
     uint8_t Module_ReceiveFIFO_Size;
 } CAN_Configuration;
 
-typedef struct
-{
+typedef struct {
     uint8_t BxCON;
     uint8_t BxSIDH;
     uint8_t BxSIDL;
@@ -190,4 +189,10 @@ uint8_t CAN_uiGetNumberOfReceiveBuffers(void);
  * \return    None; 
  */
 bool CAN_bBufferRequestsData(CAN_Buffer * target);
+/**
+ * \brief     This function returns a pointer to a buffer that received new data and has identifier == targetIdentifier
+ * \param     None
+ * \return    None; 
+ */
+CAN_Buffer * CAN_uiGetResponseBufferByIdentifier(uint32_t targetIdentifier);
 #endif /* HEAD_H_ */

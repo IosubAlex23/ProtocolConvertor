@@ -1,18 +1,17 @@
 /* 
- * File:   I2C.h
+ * File:   Timer0.h
  * Author: Alex
  *
- * Created on February 17, 2019, 6:42 PM
+ * Created on December 6, 2018, 5:17 PM
  */
 
-#ifndef I2C_H
-#define	I2C_H
+#ifndef TIMER2_H
+#define	TIMER2_H
 
 /*----------------------------------------------------------------------------*/
 /*                                  Includes                                  */
 /*----------------------------------------------------------------------------*/
 #include "../../03_Common/types.h"
-#include "../TIMER2/Timer2.h"
 /*----------------------------------------------------------------------------*/
 /*                             Defines and macros                             */
 /*----------------------------------------------------------------------------*/
@@ -22,11 +21,23 @@
 
 /*----------------------------------------------------------------------------*/
 typedef enum {
-    I2C_NO_NEW_DATA = 0u,
-    I2C_NEW_DATA_RECEIVED,
-    I2C_DATA_REQUESTED,
-    I2C_REQUEST_SERVED
-} I2C_SlaveOperationType;
+    TMR_100kHz = 0,
+    TMR_200kHz,
+    TMR_300kHz,
+    TMR_400kHz,
+    TMR_500kHz,
+    TMR_600kHz,
+    TMR_700kHz,
+    TMR_800kHz,
+    TMR_900kHz,
+    TMR_1000kHz,
+    TMR_1100kHz,
+    TMR_1200kHz,
+    TMR_1300kHz,
+    TMR_1400kHz,
+    TMR_1500kHz,
+    TMR_1600kHz
+} Timer2_OutputFrequency;
 /*----------------------------------------------------------------------------*/
 /*                 External declaration of global RAM-Variables               */
 /*----------------------------------------------------------------------------*/
@@ -39,45 +50,31 @@ typedef enum {
 /*                  External declaration of global functions                  */
 /*----------------------------------------------------------------------------*/
 /**
- * \brief     This function [...];
+ * \brief     This function initializes the module;
  * \param     None
  * \return    None 
  */
-void I2C_vInit(void);
-
-void I2C_vJoinAsSlave(uint8_t adresssAsSlave);
-
-void I2C_vMasterTransmit(uint8_t targetAdress, uint8_t targetRegister, uint8_t dataToBeSent);
-
-void I2C_vMasterTransmitBytes(uint8_t targetAdress, uint8_t * arrayWithData, uint8_t numberOfBytes);
-
-void I2C_vMasterRead(uint8_t targetAdress, uint8_t numberOfBytes, uint8_t * storingLocation);
-
+void Timer2_vInit(Timer2_OutputFrequency targetFrequency);
 /**
- * \brief     This function is used to set the response for a read requested by a master node;
+ * \brief     This function starts the module with a given configuration;
+ * \param     config - The configuration of the timer;
+ *            startValue - count start Value;
+ *            endValue - count end Value (overflow value); if TIMER_16BIT_MODE == config.opMode this param is irrelevant;
+ * \return    None 
+ */
+void Timer2_vStart();
+/**
+ * \brief     This function stops the module;
  * \param     None
- * \return    None
+ * \return    None 
  */
-void I2C_vSlaveSetResponse(uint8_t * DataSource_ptr, uint8_t NumberOfBytes);
+void Timer2_vStop();
+
 /**
- * \brief     This function is used to read received data by the slave from the RX buffer;
+ * \brief     This function stops the module;
  * \param     None
- * \return    bool: true if new data was received - meaning that in *receivedData is a new value; 
- *                  false if no new data was put at receivedData; 
+ * \return    None 
  */
-I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t * matchedAdress);
-
-bool I2C_bStopDetected(void);
-
-bool I2C_bOperationWasARead(void);
-
-bool I2C_bIsMasterModeActive(void);
-/**
- * \brief     This function is used to set the clock frequency of the I2C module;
- * \param     clkID * 25 = desired baud rate in khz
- * \return    
- */
-void I2C_vSetCLK(uint8_t clkID);
-
-#endif	/* I2C_H */
+bool Timer2_bWasOverflow();
+#endif	/* TIMER2_H */
 

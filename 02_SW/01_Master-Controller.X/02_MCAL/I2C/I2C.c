@@ -45,6 +45,7 @@
 #define I2C2_SET_NACKDT()                   (MASK_8BIT_SET_BIT(I2C2CON1, I2C_ACKDT_POSITION))
 #define I2C2_RELEASE_CLOCK()                (MASK_8BIT_CLEAR_BIT(I2C2CON0, I2C_CSTR_POSTION))
 #define I2C2_PORT_MASK                      (0x0C)
+#define I2C_MASTER_MODE_BITS_VALUE          (0x03)
 /*----------------------------------------------------------------------------*/
 /*                              Local data types                              */
 
@@ -54,6 +55,14 @@ typedef enum
     I2C_OPERATION_WRITE = 0u,
     I2C_OPERATION_READ,
 } I2C_OperationType;
+
+typedef struct
+{
+    uint8_t DataForResponse[8];
+    uint8_t NumberOfBytesToBeSent;
+    uint8_t StackIndex;
+    uint8_t DataPendingValue;
+} I2C_SlaveResponse;
 /*----------------------------------------------------------------------------*/
 /*                             Global data at RAM                             */
 /*----------------------------------------------------------------------------*/
@@ -65,11 +74,11 @@ typedef enum
 /*----------------------------------------------------------------------------*/
 /*                             Local data at RAM                              */
 /*----------------------------------------------------------------------------*/
-
+static const uint8_t I2C_DefaultResponsePendingValue = 0x55;
 /*----------------------------------------------------------------------------*/
 /*                             Local data at ROM                              */
 /*----------------------------------------------------------------------------*/
-
+static I2C_SlaveResponse I2C_SlaveResponseData;
 /*----------------------------------------------------------------------------*/
 /*                       Declaration of local functions                       */
 /*----------------------------------------------------------------------------*/
@@ -90,7 +99,7 @@ void I2C_vInit(void)
 {
     I2C2CON0 = 0x0C;
     I2C2CON2 = 0x20;
-    I2C2CLK = 0x03;
+    I2C2CLK = 0x06;
     MASK_8BIT_SET_BIT(I2C1STAT1, I2C_CLRBF_POSITION);
     // de aici in jos is copy paste de pe proj vechi
     TRISC &= ~I2C2_PORT_MASK;
@@ -180,12 +189,17 @@ void I2C_vJoinAsSlave(uint8_t adresssAsSlave)
     MASK_8BIT_SET_BIT(I2C2CON1, I2C_ACKCNT_POSITION);
     /* Clearing ACKDT */
     I2C2_SET_ACKDT();
+
+    I2C_SlaveResponseData.DataPendingValue = I2C_DefaultResponsePendingValue;
+    I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
+    I2C_SlaveResponseData.StackIndex = 0;
+
     I2C2_vModuleEnable();
 }
 
-bool I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t * matchedAdress)
+I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t * matchedAdress)
 {
-    bool returnValue = false;
+    I2C_SlaveOperationType returnValue = I2C_NO_NEW_DATA;
     if (1u == I2C2_IS_SLAVE_ACTIVE())
     {
         I2C2_SET_CNT_VALUE(0xFF);
@@ -202,7 +216,27 @@ bool I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t * matchedAdress)
                     {
                         I2C2_RELEASE_CLOCK();
                     }
-                    I2C2_WRITE_TXB(0x8A);
+                    /* This responds to data reads with the default Data Pending Value or with the actual data */
+                    if (0 == I2C_SlaveResponseData.NumberOfBytesToBeSent)
+                    {
+                        I2C2_WRITE_TXB(I2C_SlaveResponseData.DataPendingValue);
+                        returnValue = I2C_DATA_REQUESTED;
+
+                    }
+                    else
+                    {
+                        I2C2_WRITE_TXB(I2C_SlaveResponseData.DataForResponse[I2C_SlaveResponseData.StackIndex]);
+                        if (I2C_SlaveResponseData.StackIndex < (I2C_SlaveResponseData.NumberOfBytesToBeSent - 1))
+                        {
+                            I2C_SlaveResponseData.StackIndex++;
+                        }
+                        else
+                        {
+                            I2C_SlaveResponseData.StackIndex = 0;
+                            I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
+                            returnValue = I2C_REQUEST_SERVED;
+                        }
+                    }
                 }
                     /* If master wants to write to slave read data from RXB */
                 else if (0u == I2C2_IS_READ_REQUEST())
@@ -211,7 +245,7 @@ bool I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t * matchedAdress)
                     {
                         I2C2_RELEASE_CLOCK();
                     }
-                    returnValue = true;
+                    returnValue = I2C_NEW_DATA_RECEIVED;
                     *receivedData = I2C2RXB;
                     *matchedAdress = I2C2_uiGetMatchedAdress();
                 }
@@ -228,9 +262,31 @@ bool I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t * matchedAdress)
             /* If master wants to read from slave put data in TXB*/
             if (1u == I2C2_IS_READ_REQUEST())
             {
-                if (1u == I2C2_IS_TXB_EMPTY())
+                while (0u == I2C2_IS_TXB_EMPTY())
                 {
-                    I2C2_WRITE_TXB(0x8A); /* Writing to this will let stop clock stretching */
+                    I2C2_RELEASE_CLOCK();
+                }
+                /* This responds to data reads with the default Data Pending Value or with the actual data */
+                if (0 == I2C_SlaveResponseData.NumberOfBytesToBeSent)
+                {
+                    I2C2_WRITE_TXB(I2C_SlaveResponseData.DataPendingValue);
+                    returnValue = I2C_DATA_REQUESTED;
+
+                }
+                else
+                {
+                    I2C2_WRITE_TXB(I2C_SlaveResponseData.DataForResponse[I2C_SlaveResponseData.StackIndex]);
+                    if (I2C_SlaveResponseData.StackIndex < (I2C_SlaveResponseData.NumberOfBytesToBeSent - 1))
+                    {
+                        I2C_SlaveResponseData.StackIndex++;
+                    }
+                    else
+                    {
+                        I2C_SlaveResponseData.StackIndex = 0;
+                        I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
+
+                        returnValue = I2C_REQUEST_SERVED;
+                    }
                 }
             }
                 /* If master wants to write to slave read data from RXB */
@@ -238,7 +294,7 @@ bool I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t * matchedAdress)
             {
                 if (1u == I2C2_IS_RXB_FULL())
                 {
-                    returnValue = true;
+                    returnValue = I2C_NEW_DATA_RECEIVED;
                     *receivedData = I2C2RXB;
                     *matchedAdress = I2C2_uiGetMatchedAdress();
                 }
@@ -272,6 +328,30 @@ bool I2C_bOperationWasARead(void)
 {
     return I2C2_IS_READ_REQUEST();
 }
+
+void I2C_vSlaveSetResponse(uint8_t * DataSource_ptr, uint8_t NumberOfBytes)
+{
+    uint8_t index;
+    if (0 == I2C_SlaveResponseData.NumberOfBytesToBeSent)
+    {
+        for (index = 0; index < NumberOfBytes; index++)
+        {
+            I2C_SlaveResponseData.DataForResponse[index] = DataSource_ptr[index];
+        }
+        I2C_SlaveResponseData.NumberOfBytesToBeSent = NumberOfBytes;
+        I2C_SlaveResponseData.StackIndex = 0;
+    }
+}
+
+bool I2C_bIsMasterModeActive(void)
+{
+    return (I2C2CON0 > I2C_MASTER_MODE_BITS_VALUE);
+}
+
+void I2C_vSetCLK(uint8_t clkID)
+{
+    Timer2_vInit(clkID);
+}
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of local functions                      */
 
@@ -288,6 +368,8 @@ bool I2C_bStopDetected(void)
     {
         returnValue = true;
         I2C2PIRbits.PCIF = 0;
+        I2C_SlaveResponseData.StackIndex = 0;
+        I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
         //I2C2_vModuleDisable();
     }
     return returnValue;

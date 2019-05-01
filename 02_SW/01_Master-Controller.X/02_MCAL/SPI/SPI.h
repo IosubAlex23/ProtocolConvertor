@@ -1,32 +1,32 @@
-/* 
- * File:   I2C.h
- * Author: Alex
+/*
+ * SPI.h
  *
- * Created on February 17, 2019, 6:42 PM
+ *  Created on: March 17, 2019
+ *      Author: Ioan Nicoara
  */
 
-#ifndef I2C_H
-#define	I2C_H
+#ifndef SPI_H_
+#define SPI_H_
 
 /*----------------------------------------------------------------------------*/
 /*                                  Includes                                  */
 /*----------------------------------------------------------------------------*/
 #include "../../03_Common/types.h"
-#include "../TIMER2/Timer2.h"
+#include "../GPIO/GPIO.h"
+
 /*----------------------------------------------------------------------------*/
 /*                             Defines and macros                             */
 /*----------------------------------------------------------------------------*/
 
-/*----------------------------------------------------------------------------*/
-/*                                 Data types                                 */
+#define SLAVE_MODE      (0u)
+#define MASTER_MODE     (1u)
+#define SS_ENABLED      (STD_HIGH)
+#define SS_DISABLED     (STD_LOW)
 
 /*----------------------------------------------------------------------------*/
-typedef enum {
-    I2C_NO_NEW_DATA = 0u,
-    I2C_NEW_DATA_RECEIVED,
-    I2C_DATA_REQUESTED,
-    I2C_REQUEST_SERVED
-} I2C_SlaveOperationType;
+/*                                 Data types                                 */
+/*----------------------------------------------------------------------------*/
+
 /*----------------------------------------------------------------------------*/
 /*                 External declaration of global RAM-Variables               */
 /*----------------------------------------------------------------------------*/
@@ -39,45 +39,41 @@ typedef enum {
 /*                  External declaration of global functions                  */
 /*----------------------------------------------------------------------------*/
 /**
- * \brief     This function [...];
+ * \brief     This function initializes the SPI Master and Slave Module;
  * \param     None
  * \return    None 
  */
-void I2C_vInit(void);
-
-void I2C_vJoinAsSlave(uint8_t adresssAsSlave);
-
-void I2C_vMasterTransmit(uint8_t targetAdress, uint8_t targetRegister, uint8_t dataToBeSent);
-
-void I2C_vMasterTransmitBytes(uint8_t targetAdress, uint8_t * arrayWithData, uint8_t numberOfBytes);
-
-void I2C_vMasterRead(uint8_t targetAdress, uint8_t numberOfBytes, uint8_t * storingLocation);
+void SPI_vInit(uint8_t OperationMode);
 
 /**
- * \brief     This function is used to set the response for a read requested by a master node;
+ * \brief     This function returns if the transfer is complete or not complete;
  * \param     None
- * \return    None
+ * \return    0 - Either no data transfers have occurred or a data transfer is in progress
+ *            1 - The data transfer is complete
  */
-void I2C_vSlaveSetResponse(uint8_t * DataSource_ptr, uint8_t NumberOfBytes);
+bool SPI_bMasterCompleteTransfer();
+
 /**
- * \brief     This function is used to read received data by the slave from the RX buffer;
- * \param     None
- * \return    bool: true if new data was received - meaning that in *receivedData is a new value; 
- *                  false if no new data was put at receivedData; 
+ * \brief     This function selects the slave to transfer
+ * \param     state - represents state of the slave (ENABLED or DISABLED)
+ * \return    none
  */
-I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t * matchedAdress);
+void SPI_vSlaveState(uint8_t state);
 
-bool I2C_bStopDetected(void);
 
-bool I2C_bOperationWasARead(void);
-
-bool I2C_bIsMasterModeActive(void);
 /**
- * \brief     This function is used to set the clock frequency of the I2C module;
- * \param     clkID * 25 = desired baud rate in khz
- * \return    
+ * \brief     This function is used for send and receive values on SPI Master/Slave Module (Exchanges a data byte over SPI);
+ * \param     data - data byte to be transmitted over SPI bus
+ * \return    ReceivedData - The received byte over SPI bus 
  */
-void I2C_vSetCLK(uint8_t clkID);
+uint8_t SPI_uiExchangeByte(uint8_t data);
 
-#endif	/* I2C_H */
+/**
+ * \brief     This function is used for send and receive values on SPI Master/Slave Module (Exchanges X data bytes over SPI);
+ * \param     *data - data byte to be transmitted over SPI bus
+ *            NoOfBytes - Represents the number of the bytes transmitted/received over SPI
+ * \return    ReceivedData - The received byte over SPI bus 
+ */
+uint8_t SPI_uiExchangeXBytes(uint8_t *data, uint8_t NoOfBytes);
 
+#endif /* HEAD_H_ */
