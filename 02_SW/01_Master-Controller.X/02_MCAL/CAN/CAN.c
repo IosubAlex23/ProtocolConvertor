@@ -255,56 +255,56 @@ void CAN_vSetBaudRate(CAN_BaudRate * baudRate)
      * bit 2-0 SEG2PH<2:0>: Phase Segment 2 Time Select bits: 001 = Phase Segment 2 time = 2 x TQ
      */
 
-    CIOCON = 0x80;
+    CIOCON = 0x00;
     switch (*baudRate)
     {
         case CAN_20KBITS:
-            BRGCON1 = 0x27;
-            BRGCON2 = 0xA8;
-            BRGCON3 = 0x01;
+            BRGCON1 = 0x3B;
+            BRGCON2 = 0xBE;
+            BRGCON3 = 0x03;
             break;
         case CAN_50KBITS:
-            BRGCON1 = 0x0F;
-            BRGCON2 = 0xA8;
-            BRGCON3 = 0x01;
+            BRGCON1 = 0x17;
+            BRGCON2 = 0xBE;
+            BRGCON3 = 0x03;
             break;
         case CAN_80KBITS:
-            BRGCON1 = 0x09;
-            BRGCON2 = 0xA8;
-            BRGCON3 = 0x01;
+            BRGCON1 = 0x0E;
+            BRGCON2 = 0xBE;
+            BRGCON3 = 0x03;
             break;
         case CAN_100KBITS:
-            BRGCON1 = 0x07;
-            BRGCON2 = 0xA8;
-            BRGCON3 = 0x01;
+            BRGCON1 = 0x0B;
+            BRGCON2 = 0xBE;
+            BRGCON3 = 0x03;
             break;
         case CAN_125KBITS:
-            BRGCON1 = 0x07;
+            BRGCON1 = 0x17;
             BRGCON2 = 0x98;
             BRGCON3 = 0x01;
             break;
         case CAN_200KBITS:
-            BRGCON1 = 0x04;
+            BRGCON1 = 0x0E;
             BRGCON2 = 0x98;
             BRGCON3 = 0x01;
             break;
         case CAN_250KBITS:
-            BRGCON1 = 0x03;
+            BRGCON1 = 0x0B;
             BRGCON2 = 0x98;
             BRGCON3 = 0x01;
             break;
         case CAN_500KBITS:
-            BRGCON1 = 0x01;
+            BRGCON1 = 0x05;
             BRGCON2 = 0x98;
             BRGCON3 = 0x01;
             break;
         case CAN_800KBITS:
-            BRGCON1 = 0x00;
+            BRGCON1 = 0x02;
             BRGCON2 = 0xA8;
             BRGCON3 = 0x01;
             break;
         case CAN_1MBIT:
-            BRGCON1 = 0x00;
+            BRGCON1 = 0x02;
             BRGCON2 = 0x98;
             BRGCON3 = 0x01;
             break;

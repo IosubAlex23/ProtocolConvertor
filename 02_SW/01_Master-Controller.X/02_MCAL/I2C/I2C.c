@@ -104,11 +104,11 @@ void I2C_vInit(void)
     // de aici in jos is copy paste de pe proj vechi
     TRISC &= ~I2C2_PORT_MASK;
     ANSELC &= ~I2C2_PORT_MASK;
-    WPUC |= I2C2_PORT_MASK;
+    // WPUC |= I2C2_PORT_MASK;
     ODCONC |= I2C2_PORT_MASK;
 
-    //    RC3I2C = 0x61; /* pULL uP, Slew Rate & Threshold */
-    //    RC2I2C = 0x61; /* pULL uP, Slew Rate & Threshold */
+    //RC3I2C = 0x20; /* pULL uP, Slew Rate & Threshold */
+    // RC2I2C = 0x20; /* pULL uP, Slew Rate & Threshold */
 
     RC3PPS = 0x23; /* Selecting which module outputs on RC3 */
     RC2PPS = 0x24; /* Selecting which module outputs on RC2 */
@@ -186,7 +186,7 @@ void I2C_vJoinAsSlave(uint8_t adresssAsSlave)
     /* Clearing ACKTIE */
     MASK_8BIT_CLEAR_BIT(I2C2PIE, I2C_ACKTIE_POSITION);
     /* Setting ACKCNT */
-    MASK_8BIT_SET_BIT(I2C2CON1, I2C_ACKCNT_POSITION);
+    MASK_8BIT_CLEAR_BIT(I2C2CON1, I2C_ACKCNT_POSITION);
     /* Clearing ACKDT */
     I2C2_SET_ACKDT();
 
@@ -302,7 +302,6 @@ I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t *
         }
 
     }
-
     return returnValue;
 }
 

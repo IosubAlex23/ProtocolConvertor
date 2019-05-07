@@ -11,13 +11,16 @@
 /*----------------------------------------------------------------------------*/
 /*                                  Includes                                  */
 /*----------------------------------------------------------------------------*/
+
+
 #include "../../02_MCAL/GPIO/GPIO.h"
 #include "../../02_MCAL/TIMER0/Timer0.h"
 #include "../../02_MCAL/TIMER2/Timer2.h"
 #include "../TimeoutModule/TimeoutModule.h"
 #include "../../02_MCAL/I2C/I2C.h"
 #include "../../02_MCAL/CAN/CAN.h"
-#include "../../02_MCAL/SPI/SPI.h"
+#include "../DataLogger/DataLogger.h"
+#include "../02_MCAL/INTERRUPT/Interrupt.h"
 /*----------------------------------------------------------------------------*/
 /*                             Defines and macros                             */
 /*----------------------------------------------------------------------------*/
@@ -43,14 +46,6 @@ typedef enum {
     REQUEST_DATA_READY,
 
 } MainApplication_RequestState;
-
-typedef enum {
-    APP_PROTOCOL_CAN = 0u,
-    APP_PROTOCOL_I2C,
-    APP_PROTOCOL_LIN,
-    APP_PROTOCOL_RS232,
-    APP_PROTOCOL_UNKNOWN,
-} MainAplication_Protocol;
 
 typedef struct {
     MainApplication_DataState DataState;

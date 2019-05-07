@@ -46,8 +46,8 @@
 /*----------------------------------------------------------------------------*/
 void Timer2_vInit(Timer2_OutputFrequency targetFrequency)
 {
-    // T2CS HFINTOSC; 
-    T2CLKCON = 0x03;
+    // T2CS FOSC; 
+    T2CLKCON = 0x02;
 
     // T2PSYNC Not Synchronized; T2MODE Software control; T2CKPOL Rising Edge; T2CKSYNC Synchronized; 
     T2HLT = 0x20;
@@ -65,54 +65,58 @@ void Timer2_vInit(Timer2_OutputFrequency targetFrequency)
     switch (targetFrequency)
     {
         case TMR_100kHz:
-            T2CON = 0x20;
-            T2PR = 0xA0;
+            T2CLKCON = 0x01;
+            T2PR = 0x77;
             break;
         case TMR_200kHz:
-            T2CON = 0x20;
-            T2PR = 0x50;
+            T2CLKCON = 0x01;
+            T2PR = 0x3B;
             break;
         case TMR_300kHz:
-            T2PR = 0xD5; // 100kHz
+            T2CLKCON = 0x01;
+            T2PR = 0x27;
             break;
         case TMR_400kHz:
-            T2PR = 0xA0; // 250kHz out on I2C
+            T2CLKCON = 0x01;
+            T2PR = 0x1D;
             break;
         case TMR_500kHz:
-            T2PR = 0x80; // 400khz out on I2C
+            T2CLKCON = 0x01;
+            T2PR = 0x17;
             break;
         case TMR_600kHz:
-            T2PR = 0x6A;
+            T2CLKCON = 0x01;
+            T2PR = 0x13;
             break;
         case TMR_700kHz:
-            T2PR = 0x5B;
+            T2PR = 0x44;
             break;
         case TMR_800kHz:
-            T2PR = 0x50;
+            T2PR = 0x3B;
             break;
         case TMR_900kHz:
-            T2PR = 0x47;
+            T2PR = 0x34;
             break;
         case TMR_1000kHz:
-            T2PR = 0x40;
+            T2PR = 0x2f;
             break;
         case TMR_1100kHz:
-            T2PR = 0x3A;
+            T2PR = 0x2B;
             break;
         case TMR_1200kHz:
-            T2PR = 0x35;
+            T2PR = 0x27;
             break;
         case TMR_1300kHz:
-            T2PR = 0x31;
+            T2PR = 0x24;
             break;
         case TMR_1400kHz:
-            T2PR = 0x2D;
+            T2PR = 0x21;
             break;
         case TMR_1500kHz:
-            T2PR = 0x2A;
+            T2PR = 0x1F;
             break;
         case TMR_1600kHz:
-            T2PR = 0x28;
+            T2PR = 0x1D;
             break;
     }
 }
