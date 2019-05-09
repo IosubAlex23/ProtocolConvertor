@@ -25,9 +25,14 @@
 #define MASTER_SLAVE_MODE_POSITION          (7u)
 #define RETRANSMISION_MASK                  (0xFE)
 #define RETRANSMISION_VALUE                 (0xA8)
+#define END_OF_CONFIG_MASK                  (0xF8)
+#define END_OF_CONFIG_VALUE                 (0x58)
 #define START_CONVERSION_FLAG_MASK          (0xFE)
 #define START_CONVERSION_FLAG_VALUE         (0x64)
 #define PROTOCOL_CONFIG_NEEDS_RETRANSMISION(x)  ((x & RETRANSMISION_MASK) == RETRANSMISION_VALUE)
+#define END_OF_CONFIGURATION_BYTE(x)            ((x & END_OF_CONFIG_MASK) == END_OF_CONFIG_VALUE)
+#define GET_PROTOCOL_FROM_LKT_LAST_BYTE(x)      (x & 0x03)
+#define DEBUG_ACTIVE                        (0x01)
 /*----------------------------------------------------------------------------*/
 /*                              Local data types                              */
 
@@ -55,10 +60,10 @@ MainApplication_DataToBeSent DataToBeSent_CAN[] = {0, 0, 0, 0, 0};
 MainApplication_DataToBeSent DataToBeSent_I2C[DTBS_I2C_FIFO_SIZE];
 
 /*  TargetProtocol, StateOfTheRequest, *Request_DTBS_ptr, TargetLocation, Receiver;*/
-MainApplication_LookUpTable LookUpTable_I2C[LKT_I2C_SIZE]/* = {
+MainApplication_LookUpTable LookUpTable_I2C[LKT_I2C_SIZE] = {
     {APP_PROTOCOL_CAN, REQUEST_IDLE, DataToBeSent_CAN, 0x64, 0x08},
     {APP_PROTOCOL_CAN, REQUEST_IDLE, DataToBeSent_CAN, 0x6F, 0x09},
-}*/;
+};
 
 MainApplication_LookUpTable LookUpTable_CAN[LKT_CAN_SIZE] = {
     {APP_PROTOCOL_I2C, REQUEST_IDLE, DataToBeSent_I2C, 0x09, 0x64},
@@ -76,6 +81,10 @@ Configurator_States ConfiguratorStates = CONFIGURATOR_IDLE;
 bool App_ProtocolsState[NUMBER_OF_PROTOCOLS] = {false, false, false, false};
 
 uint8_t App_NumberOfBytesToReceive;
+
+
+uint8_t TestArray[32];
+uint8_t TestArray_Size = 0;
 /*----------------------------------------------------------------------------*/
 /*                             Local data at ROM                              */
 /*----------------------------------------------------------------------------*/
@@ -148,7 +157,7 @@ void MainApplication_vAddDataToBuffers_CAN(void);
 void MainApplication_vCheckReceiveBuffers(void);
 
 
-uint8_t BasicOperations_BinarySearch(MainApplication_LookUpTable table[], uint8_t startIndex, uint8_t endIndex, uint8_t searchedValue);
+uint8_t BasicOperations_BinarySearch(MainApplication_LookUpTable * table, uint8_t startIndex, uint8_t endIndex, uint8_t searchedValue);
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of global functions                     */
 /*----------------------------------------------------------------------------*/
@@ -159,6 +168,7 @@ uint8_t BasicOperations_BinarySearch(MainApplication_LookUpTable table[], uint8_
 /*----------------------------------------------------------------------------*/
 void MainApplication_vInit()
 {
+    INTERRUPT_Initialize();
     SPI_vInit(SLAVE_MODE);
     App_SPIReceivedData = 0;
     App_NumberOfBytesToReceive = 0;
@@ -173,40 +183,50 @@ void MainApplication_vLookUpTableInit(void)
     uint8_t index;
     for (index = 0; index < LKT_I2C_SIZE; index++)
     {
-        LookUpTable_I2C[index].Receiver = 0x00;
+        LookUpTable_I2C[index].Receiver = 0xFF;
         LookUpTable_I2C[index].Request_DTBS_ptr = DataToBeSent_I2C;
         LookUpTable_I2C[index].StateOfTheRequest = REQUEST_IDLE;
-        LookUpTable_I2C[index].TargetLocation = 0x00;
+        LookUpTable_I2C[index].TargetLocation = 0xFFFF;
         LookUpTable_I2C[index].TargetProtocol = APP_PROTOCOL_UNKNOWN;
     }
 
     LookUpTable_I2C_Elements = 0;
     DataToBeSent_I2C_StackPointer = 0;
     DataToBeSent_I2C_ReadPointer = 0;
+
     for (index = 0; index < LKT_CAN_SIZE; index++)
     {
-        LookUpTable_CAN[index].Receiver = 0x00;
+        LookUpTable_CAN[index].Receiver = 0xFF;
         LookUpTable_CAN[index].Request_DTBS_ptr = DataToBeSent_CAN;
         LookUpTable_CAN[index].StateOfTheRequest = REQUEST_IDLE;
-        LookUpTable_CAN[index].TargetLocation = 0x00;
+        LookUpTable_CAN[index].TargetLocation = 0xFFFF;
         LookUpTable_CAN[index].TargetProtocol = APP_PROTOCOL_UNKNOWN;
     }
     LookUpTable_CAN_Elements = 0;
+}
+
+void TestArray_Add(uint8_t a)
+{
+    TestArray[TestArray_Size] = a;
+    TestArray_Size++;
 }
 
 void main(void)
 {
     // Initialize the device
     SYSTEM_Initialize();
-    Timer2_vInit(TMR_1300kHz);
-    Timer2_vStart();
+    Timer2_vInit(TMR_400kHz);
+
     TimeoutModule_vInit();
     I2C_vInit();
+    //I2C_vJoinAsSlave(0x08);
     CAN_Configuration CAN_config;
     CAN_config.Module_FrameType = CAN_STANDARD_FRAME;
     CAN_config.Module_FunctionalMode = CAN_ENHANCED_FUNCTIONAL_MODE;
     CAN_config.Module_OperationMode = CAN_NORMAL_OPERATION_MODE;
     CAN_config.Module_ReceiveFIFO_Size = 2;
+    CAN_config.Module_BaudRate = CAN_250KBITS;
+    CAN_vInit(&CAN_config);
 
     MainApplication_vInit();
     MainAplication_Protocol Configurator_targetProtocol;
@@ -216,14 +236,14 @@ void main(void)
     uint8_t Configurator_LKT_element_index;
     uint8_t Configurator_CurrentLKT;
     uint8_t Configurator_Response_Value = 1;
-    uint8_t arr[] = {0x33, 0x12};
     uint8_t a = 1, b = 0;
     CAN_Buffer * bfrPtr = CAN_uiGetBufferAdrress(&a);
 
     //I2C_vMasterTransmit(0x08, 0x33, 0x33);
-
+    a = 1;
     while (1)
     {
+
         switch (Application_State)
         {
                 /* The code under this case will execute while connected to the device that is configuring the protocol convertor */
@@ -240,6 +260,7 @@ void main(void)
                             App_NumberOfConfigBytesReceived = 0;
                             ConfiguratorStates = CONFIGURATOR_STARTED;
                             Configurator_Response_Value++;
+                            TestArray_Add(App_SPIReceivedData);
                         }
                         break;
                     case CONFIGURATOR_STARTED:
@@ -252,6 +273,8 @@ void main(void)
                                     if (App_NumberOfConfigBytesReceived == 0u)
                                     {
                                         App_NumberOfLKTSToReceive = App_SPIReceivedData;
+                                        LookUpTable_CAN_Elements = App_NumberOfLKTSToReceive;
+
                                     }
                                     else if (App_NumberOfConfigBytesReceived == 1u)
                                     {
@@ -264,6 +287,7 @@ void main(void)
                                         ConfiguratorStates = CONFIGURATOR_LOOKUPS;
                                         Configurator_Response_Value = 3;
                                     }
+                                    TestArray_Add(App_SPIReceivedData);
                                 }
                                 break;
                             case APP_PROTOCOL_I2C:
@@ -274,16 +298,17 @@ void main(void)
                                     if (App_NumberOfConfigBytesReceived == 0u)
                                     {
                                         App_NumberOfLKTSToReceive = App_SPIReceivedData;
+                                        LookUpTable_I2C_Elements = App_NumberOfLKTSToReceive;
                                     }
                                     else if (App_NumberOfConfigBytesReceived == 1u)
                                     {
-                                        /* Get MS Bit - that indicates the mode Master(0) / Slave(1) */
-                                        if (1 == MASK_8BIT_GET_BIT(App_SPIReceivedData, MASTER_SLAVE_MODE_POSITION))
+                                        /* Get MS Bit - that indicates the mode Master(1) / Slave(0) */
+                                        if (0 == MASK_8BIT_GET_BIT(App_SPIReceivedData, MASTER_SLAVE_MODE_POSITION))
                                         {
                                             MASK_8BIT_CLEAR_BIT(App_SPIReceivedData, MASTER_SLAVE_MODE_POSITION);
                                             I2C_vJoinAsSlave(App_SPIReceivedData);
                                         }
-                                        else if (0 == MASK_8BIT_GET_BIT(App_SPIReceivedData, MASTER_SLAVE_MODE_POSITION))
+                                        else if (1 == MASK_8BIT_GET_BIT(App_SPIReceivedData, MASTER_SLAVE_MODE_POSITION))
                                         {
                                             MASK_8BIT_CLEAR_BIT(App_SPIReceivedData, MASTER_SLAVE_MODE_POSITION);
                                             I2C_vSetCLK(App_SPIReceivedData);
@@ -298,6 +323,7 @@ void main(void)
                                         ConfiguratorStates = CONFIGURATOR_LOOKUPS;
                                         Configurator_Response_Value = 3;
                                     }
+                                    TestArray_Add(App_SPIReceivedData);
                                 }
                                 break;
                         }
@@ -330,7 +356,7 @@ void main(void)
                                         ConfiguratorStates = CONFIGURATOR_IDLE;
                                         break;
                                     }
-                                    Configurator_tempTable.TargetProtocol = App_SPIReceivedData;
+                                    Configurator_tempTable.TargetProtocol = GET_PROTOCOL_FROM_LKT_LAST_BYTE(App_SPIReceivedData);
                                     switch (Configurator_targetProtocol)
                                     {
                                         case APP_PROTOCOL_CAN:
@@ -344,7 +370,6 @@ void main(void)
                                             if (Configurator_CurrentLKT >= App_NumberOfLKTSToReceive)
                                             {
                                                 ConfiguratorStates = CONFIGURATOR_IDLE;
-                                                Application_State = APP_RUNNING_STATE;
                                                 CAN_vInit(&CAN_config);
                                             }
                                             break;
@@ -358,18 +383,36 @@ void main(void)
                                             if (Configurator_CurrentLKT >= App_NumberOfLKTSToReceive)
                                             {
                                                 ConfiguratorStates = CONFIGURATOR_IDLE;
-                                                Application_State = APP_RUNNING_STATE;
+
                                             }
                                             break;
+                                        default:
+                                            Configurator_CurrentLKT++;
+                                            if (Configurator_CurrentLKT >= App_NumberOfLKTSToReceive)
+                                            {
+                                                ConfiguratorStates = CONFIGURATOR_IDLE;
+
+                                            }
+                                            break;
+
+                                    }
+                                    if (1 == END_OF_CONFIGURATION_BYTE(App_SPIReceivedData))
+                                    {
+                                        Application_State = APP_RUNNING_STATE;
                                     }
                                     break;
                             }
+                            TestArray_Add(App_SPIReceivedData);
                         }
                         break;
                 }
                 break;
-                /* The code under this case will realise the conversion */
+                /* The code under this case will realize the conversion */
             case APP_RUNNING_STATE:
+                if (T2CON != 0x80)
+                {
+                    Timer2_vStart();
+                }
                 MainApplication_vConvert();
                 MainApplication_vAddDataToBuffers();
                 //                if((RXB1CON & 0x80) == 0x80)
@@ -701,7 +744,8 @@ void MainApplication_vAddDataToBuffers_CAN()
     CAN_Frame frame;
     CAN_vFrameSetData(&frame, DataToBeSent_CAN[0].Data, (DataToBeSent_CAN[0].NextIndex + 1));
     DataToBeSent_CAN[0].NextIndex = 0;
-    frame.Frame_Identifier = DataToBeSent_CAN[0].TargetLocation;
+    DataToBeSent_CAN[0].DataState =
+            frame.Frame_Identifier = DataToBeSent_CAN[0].TargetLocation;
     frame.Frame_RTR = false;
     CAN_vTransmitFrame(frame);
 }
@@ -717,7 +761,7 @@ void MainApplication_vAddDataToBuffers_I2C()
     CAN_vTransmitFrame(frame);
 }
 
-uint8_t BasicOperations_BinarySearch(MainApplication_LookUpTable table[], uint8_t startIndex, uint8_t endIndex, uint8_t searchedValue)
+uint8_t BasicOperations_BinarySearch(MainApplication_LookUpTable * table, uint8_t startIndex, uint8_t endIndex, uint8_t searchedValue)
 {
     while (startIndex <= endIndex)
     {

@@ -76,4 +76,12 @@ uint8_t SPI_uiExchangeByte(uint8_t data);
  */
 uint8_t SPI_uiExchangeXBytes(uint8_t *data, uint8_t NoOfBytes);
 
+
+/**
+ * \brief     This function returns one if the FIFO has new data
+ * \param     None
+ * \return    Bool - 1 = has new data;
+ */
+bool SPI_bHasNewData(void);
+
 #endif /* HEAD_H_ */

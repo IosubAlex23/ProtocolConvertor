@@ -56,6 +56,14 @@ typedef enum {
     STD_UNKNOWN,
 } STD_LogicLevel;
 
+typedef enum {
+    APP_PROTOCOL_CAN = 0u,
+    APP_PROTOCOL_I2C,
+    APP_PROTOCOL_LIN,
+    APP_PROTOCOL_RS232,
+    APP_PROTOCOL_UNKNOWN,
+} MainAplication_Protocol;
+
 /*----------------------------------------------------------------------------*/
 /*                 External declaration of global RAM-Variables               */
 /*----------------------------------------------------------------------------*/

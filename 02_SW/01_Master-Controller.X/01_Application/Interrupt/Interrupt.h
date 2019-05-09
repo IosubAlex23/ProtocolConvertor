@@ -1,67 +1,31 @@
-/* 
- * File:   MainApplication.h
- * Author: Alex
+/*
+ * HEAD.H
  *
- * Created on March 19, 2019, 1:35 PM
+ *  Created on: Mmm DD, YYYY
+ *      Author: Iosub Mihai Alexandru
  */
 
-#ifndef MAINAPPLICATION_H
-#define	MAINAPPLICATION_H
+#ifndef INTERRUPT_H_
+#define INTERRUPT_H_
+
+/**
+ * \file       Head.h
+ * \author     Iosub Mihai Alexandru
+ * \brief      Short description for this header file
+ */
+
 
 /*----------------------------------------------------------------------------*/
 /*                                  Includes                                  */
 /*----------------------------------------------------------------------------*/
-#include "../../02_MCAL/GPIO/GPIO.h"
-#include "../../02_MCAL/TIMER0/Timer0.h"
-#include "../../02_MCAL/TIMER2/Timer2.h"
-#include "../TimeoutModule/TimeoutModule.h"
-#include "../../02_MCAL/I2C/I2C.h"
-#include "../../02_MCAL/CAN/CAN.h"
-#include "../../02_MCAL/SPI/SPI.h"
-#include "../Interrupt/Interrupt.h"
+#include "../../03_Common/types.h"
 /*----------------------------------------------------------------------------*/
 /*                             Defines and macros                             */
 /*----------------------------------------------------------------------------*/
-#define MAX_BYTES_ON_TRANSACTION    (8u)
+
 /*----------------------------------------------------------------------------*/
 /*                                 Data types                                 */
-
 /*----------------------------------------------------------------------------*/
-typedef enum {
-    APP_CONFIGURATION_STATE = 0u,
-    APP_RUNNING_STATE,
-} MainApplication_State;
-
-typedef enum {
-    DATA_PENDING = 0u,
-    DATA_READY,
-    DATA_WAS_SENT,
-} MainApplication_DataState;
-
-typedef enum {
-    REQUEST_IDLE = 0u,
-    REQUEST_DATA_PENDING,
-    REQUEST_DATA_READY,
-
-} MainApplication_RequestState;
-
-typedef struct {
-    MainApplication_DataState DataState;
-    uint32_t TargetLocation;
-    uint8_t Data[MAX_BYTES_ON_TRANSACTION];
-    uint8_t NextIndex;
-} MainApplication_DataToBeSent;
-
-typedef struct {
-    /* This is the matched slave address or the identifier in the case of CAN / LIN protocols from where data was received*/
-    MainAplication_Protocol TargetProtocol;
-    MainApplication_RequestState StateOfTheRequest;
-    /* This points to the DataToBeSent element that contains the data that needs to be sent in order to respond to the request*/
-    MainApplication_DataToBeSent * Request_DTBS_ptr;
-    uint32_t TargetLocation;
-    uint16_t Receiver;
-} MainApplication_LookUpTable;
-
 
 /*----------------------------------------------------------------------------*/
 /*                 External declaration of global RAM-Variables               */
@@ -79,6 +43,5 @@ typedef struct {
  * \param     None
  * \return    None 
  */
-
-#endif	/* MAINAPPLICATION_H */
-
+void INTERRUPT_Initialize(void);
+#endif /* HEAD_H_ */

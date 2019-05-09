@@ -104,7 +104,7 @@ void I2C_vInit(void)
     // de aici in jos is copy paste de pe proj vechi
     TRISC &= ~I2C2_PORT_MASK;
     ANSELC &= ~I2C2_PORT_MASK;
-    WPUC |= I2C2_PORT_MASK;
+    //WPUC |= I2C2_PORT_MASK;
     ODCONC |= I2C2_PORT_MASK;
 
     //    RC3I2C = 0x61; /* pULL uP, Slew Rate & Threshold */
@@ -115,7 +115,7 @@ void I2C_vInit(void)
 
     I2C2SDAPPS = 0x12; /* Feeding I2C1SDA from pin RC2 */
     I2C2SCLPPS = 0x13; /* Feeding I2C1SCL from pin RC3 */
-
+    MASK_8BIT_SET_BIT(I2C2STAT1, I2C_CLRBF_POSITION);
 }
 
 void I2C_vMasterTransmit(uint8_t targetAdress, uint8_t targetRegister, uint8_t dataToBeSent)
@@ -317,7 +317,7 @@ void I2C_vMasterTransmitBytes(uint8_t targetAdress, uint8_t * arrayWithData, uin
     {
         while (0u == I2C2_IS_TXB_EMPTY())
         {
-
+            I2C2_SET_START();
         }
         I2C2_WRITE_TXB(arrayWithData[index]);
         I2C2_SET_START();

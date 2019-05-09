@@ -37,6 +37,9 @@
       <logicalFolder name="03_Common" displayName="03_Common" projectFiles="true">
         <itemPath>03_Common/types.h</itemPath>
       </logicalFolder>
+      <logicalFolder name="Interrupt" displayName="Interrupt" projectFiles="true">
+        <itemPath>01_Application/Interrupt/Interrupt.h</itemPath>
+      </logicalFolder>
       <logicalFolder name="MCC Generated Files"
                      displayName="MCC Generated Files"
                      projectFiles="true">
@@ -52,6 +55,9 @@
       <logicalFolder name="01_Application"
                      displayName="01_Application"
                      projectFiles="true">
+        <logicalFolder name="Interrupt" displayName="Interrupt" projectFiles="true">
+          <itemPath>01_Application/Interrupt/Interrupt.c</itemPath>
+        </logicalFolder>
         <logicalFolder name="MainApplication"
                        displayName="MainApplication"
                        projectFiles="true">

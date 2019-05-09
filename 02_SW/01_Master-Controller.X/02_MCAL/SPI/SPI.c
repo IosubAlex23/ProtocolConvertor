@@ -19,6 +19,7 @@
 #define SPI_MOSI                    (0xC1)
 #define SPI_MISO                    (0xC0)
 #define SPI_SLAVE_EN                (0xA5)
+#define SPI_FIFO_LENGTH             (32)
 
 /*----------------------------------------------------------------------------*/
 /*                              Local data types                              */
@@ -35,7 +36,9 @@
 /*----------------------------------------------------------------------------*/
 /*                             Local data at RAM                              */
 /*----------------------------------------------------------------------------*/
-
+volatile uint8_t SPI_FIFO[SPI_FIFO_LENGTH];
+static uint8_t SPI_FIFO_ReadPointer;
+static uint8_t SPI_FIFO_WritePointer;
 /*----------------------------------------------------------------------------*/
 /*                             Local data at ROM                              */
 /*----------------------------------------------------------------------------*/
@@ -55,7 +58,7 @@ void SPI_vTransmit(uint8_t data);
  * \param     None
  * \return    returns the value received in the SPI1RXB register  
  */
-uint8_t SPI_uiReceive();
+uint8_t SPI_uiReceive(void);
 
 /**
  * \brief     This function automatically calculates BaudRate for the SPI Module
@@ -63,6 +66,20 @@ uint8_t SPI_uiReceive();
  * \return    None 
  */
 void SPI_vBaudRateCalculator(uint32_t DesiredBaud);
+
+/**
+ * \brief     This function pushes data to the FIFO
+ * \param     data - data to be pushed 
+ * \return    None 
+ */
+void SPI_vFIFOPush(uint8_t data);
+
+/**
+ * \brief     This function pushes data to the FIFO
+ * \param     data - data to be pushed 
+ * \return    None 
+ */
+uint8_t SPI_vFIFOPop(void);
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of global functions                     */
 
@@ -76,7 +93,8 @@ void SPI_vInit(uint8_t OperationMode)
     SPI1TCNTH = RESET_VALUE;
     SPI1TWIDTH = RESET_VALUE;
     SPI1CLK = RESET_VALUE; //CLKSEL FOSC; 
-
+    SPI_FIFO_ReadPointer = 0u;
+    SPI_FIFO_WritePointer = 0u;
     if (OperationMode == MASTER_MODE)
     {
         RB3PPS = 0x1E; //SPI_SCK_SLAVE_INPUT:RB3
@@ -116,10 +134,9 @@ void SPI_vInit(uint8_t OperationMode)
 uint8_t SPI_uiExchangeByte(uint8_t data)
 {
     uint8_t ReceivedData; //Represents the received data
-
-    SPI1TCNTL = 1u; //One byte transfer count
-    SPI_vTransmit(data);
-    ReceivedData = SPI_uiReceive();
+    while (false == SPI_bHasNewData());
+    //SPI_vTransmit(data);
+    ReceivedData = SPI_vFIFOPop();
 
     return ReceivedData;
 }
@@ -161,10 +178,46 @@ void SPI_vSlaveState(uint8_t state)
     }
 }
 
+bool SPI_bHasNewData(void)
+{
+    return (SPI_FIFO_WritePointer > SPI_FIFO_ReadPointer);
+}
+
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of local functions                      */
 
 /*----------------------------------------------------------------------------*/
+void __interrupt(irq(20)) SPI_ISR(void)
+{
+    uint8_t receivedData = SPI_uiReceive();
+
+    SPI1TCNTL = 1u; //One byte transfer count
+    PIR2bits.SPI1RXIF = 0; // Clear the interrupt flag
+    SPI_vFIFOPush(receivedData);
+    SPI_vTransmit(receivedData);
+}
+
+void SPI_vFIFOPush(uint8_t data)
+{
+    SPI_FIFO[SPI_FIFO_WritePointer] = data;
+    SPI_FIFO_WritePointer++;
+    if (SPI_FIFO_WritePointer >= SPI_FIFO_LENGTH)
+    {
+        SPI_FIFO_WritePointer = 0;
+    }
+}
+
+uint8_t SPI_vFIFOPop(void)
+{
+    uint8_t returnValue = SPI_FIFO[SPI_FIFO_ReadPointer];
+    SPI_FIFO_ReadPointer++;
+    if (SPI_FIFO_ReadPointer >= SPI_FIFO_LENGTH)
+    {
+        SPI_FIFO_ReadPointer = 0;
+    }
+    return returnValue;
+}
+
 void SPI_vBaudRateCalculator(uint32_t DesiredBaud)
 {
     SPI1BAUD = (_XTAL_FREQ / (2u * DesiredBaud)) - 1u;
@@ -179,7 +232,7 @@ void SPI_vTransmit(uint8_t data)
     SPI1TXB = data;
 }
 
-uint8_t SPI_uiReceive()
+uint8_t SPI_uiReceive(void)
 {
     while (STD_LOW == SPI_RX_COMPLETE)
     {
