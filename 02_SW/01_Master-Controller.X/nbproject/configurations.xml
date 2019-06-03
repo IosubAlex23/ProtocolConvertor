@@ -7,6 +7,9 @@
       <logicalFolder name="01_Application"
                      displayName="01_Application"
                      projectFiles="true">
+        <logicalFolder name="DataLogger" displayName="DataLogger" projectFiles="true">
+          <itemPath>01_Application/DataLogger/DataLogger.h</itemPath>
+        </logicalFolder>
         <logicalFolder name="TimeoutModule"
                        displayName="TimeoutModule"
                        projectFiles="true">
@@ -55,6 +58,9 @@
       <logicalFolder name="01_Application"
                      displayName="01_Application"
                      projectFiles="true">
+        <logicalFolder name="DataLogger" displayName="DataLogger" projectFiles="true">
+          <itemPath>01_Application/DataLogger/DataLogger.c</itemPath>
+        </logicalFolder>
         <logicalFolder name="Interrupt" displayName="Interrupt" projectFiles="true">
           <itemPath>01_Application/Interrupt/Interrupt.c</itemPath>
         </logicalFolder>

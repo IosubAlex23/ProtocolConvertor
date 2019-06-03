@@ -32,7 +32,7 @@
 #define PROTOCOL_CONFIG_NEEDS_RETRANSMISION(x)  ((x & RETRANSMISION_MASK) == RETRANSMISION_VALUE)
 #define END_OF_CONFIGURATION_BYTE(x)            ((x & END_OF_CONFIG_MASK) == END_OF_CONFIG_VALUE)
 #define GET_PROTOCOL_FROM_LKT_LAST_BYTE(x)      (x & 0x03)
-#define DEBUG_ACTIVE                        (0x01)
+#define DEBUG_ACTIVE                        (0)
 /*----------------------------------------------------------------------------*/
 /*                              Local data types                              */
 
@@ -156,8 +156,12 @@ void MainApplication_vAddDataToBuffers_CAN(void);
  */
 void MainApplication_vCheckReceiveBuffers(void);
 
-
-uint8_t BasicOperations_BinarySearch(MainApplication_LookUpTable * table, uint8_t startIndex, uint8_t endIndex, uint8_t searchedValue);
+/**
+ * \brief     This function does a binary search on an array based on the searchBy parameter.
+ * \param     None
+ * \return    None
+ */
+uint8_t BasicOperations_BinarySearch(MainApplication_LookUpTable * table, uint8_t startIndex, uint8_t endIndex, uint8_t searchedValue, bool searchBy);
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of global functions                     */
 /*----------------------------------------------------------------------------*/
@@ -173,7 +177,8 @@ void MainApplication_vInit()
     App_SPIReceivedData = 0;
     App_NumberOfBytesToReceive = 0;
     ConfiguratorStates = CONFIGURATOR_IDLE;
-    Application_State = APP_CONFIGURATION_STATE;
+    //    Application_State = APP_CONFIGURATION_STATE;
+    Application_State = APP_RUNNING_STATE;
     MainApplication_vLookUpTableInit();
 
 }
@@ -219,7 +224,7 @@ void main(void)
 
     TimeoutModule_vInit();
     I2C_vInit();
-    //I2C_vJoinAsSlave(0x08);
+    I2C_vJoinAsSlave(0x08);
     CAN_Configuration CAN_config;
     CAN_config.Module_FrameType = CAN_STANDARD_FRAME;
     CAN_config.Module_FunctionalMode = CAN_ENHANCED_FUNCTIONAL_MODE;
@@ -241,7 +246,14 @@ void main(void)
 
     //I2C_vMasterTransmit(0x08, 0x33, 0x33);
     a = 1;
-    while (1)
+    TestArray[0] = 0x33;
+    TestArray[1] = 0x64;
+    TestArray[2] = 0x70;
+    while (DEBUG_ACTIVE)
+    {
+        SPI_uiExchangeXBytes(TestArray, 3);
+    }
+    while (!DEBUG_ACTIVE)
     {
 
         switch (Application_State)
@@ -370,6 +382,7 @@ void main(void)
                                             if (Configurator_CurrentLKT >= App_NumberOfLKTSToReceive)
                                             {
                                                 ConfiguratorStates = CONFIGURATOR_IDLE;
+                                                Application_State = APP_RUNNING_STATE;
                                                 CAN_vInit(&CAN_config);
                                             }
                                             break;
@@ -383,7 +396,7 @@ void main(void)
                                             if (Configurator_CurrentLKT >= App_NumberOfLKTSToReceive)
                                             {
                                                 ConfiguratorStates = CONFIGURATOR_IDLE;
-
+                                                Application_State = APP_RUNNING_STATE;
                                             }
                                             break;
                                         default:
@@ -391,7 +404,7 @@ void main(void)
                                             if (Configurator_CurrentLKT >= App_NumberOfLKTSToReceive)
                                             {
                                                 ConfiguratorStates = CONFIGURATOR_IDLE;
-
+                                                Application_State = APP_RUNNING_STATE;
                                             }
                                             break;
 
@@ -409,17 +422,12 @@ void main(void)
                 break;
                 /* The code under this case will realize the conversion */
             case APP_RUNNING_STATE:
-                if (T2CON != 0x80)
-                {
-                    Timer2_vStart();
-                }
+                //                if (T2CON != 0x80)
+                //     -                   {
+                //                            Timer2_vStart();
+                //                        }
                 MainApplication_vConvert();
                 MainApplication_vAddDataToBuffers();
-                //                if((RXB1CON & 0x80) == 0x80)
-                //                {
-                //                    I2C_vMasterTransmit(0x08, 0x34, bfrPtr->BxData[0]);
-                //                    RXB1CON &= 0x7F;
-                //                }
                 break;
         }
     }
@@ -557,6 +565,7 @@ void MainApplication_vConvert()
                 /* If it was not a RTR it means that new data was received */
             else
             {
+                //if(DataToBeSent_CAN[0].)
                 switch (targetTable->TargetProtocol)
                 {
                     case APP_PROTOCOL_I2C:
@@ -588,11 +597,11 @@ MainApplication_LookUpTable * MainApplication_uiCheckLookUpTable(MainAplication_
     switch (targetProtocol)
     {
         case APP_PROTOCOL_CAN:
-            targetIndex = BasicOperations_BinarySearch(LookUpTable_CAN, 0, (LookUpTable_CAN_Elements - 1), *targetReceiver);
+            targetIndex = BasicOperations_BinarySearch(LookUpTable_CAN, 0, (LookUpTable_CAN_Elements - 1), *targetReceiver, 0);
             returnValue = &LookUpTable_CAN[targetIndex];
             break;
         case APP_PROTOCOL_I2C:
-            targetIndex = BasicOperations_BinarySearch(LookUpTable_I2C, 0, (LookUpTable_I2C_Elements - 1), *targetReceiver);
+            targetIndex = BasicOperations_BinarySearch(LookUpTable_I2C, 0, (LookUpTable_I2C_Elements - 1), *targetReceiver, 0);
             returnValue = &LookUpTable_I2C[targetIndex];
             /*if ((0xFF) != targetIndex)
             {
@@ -761,20 +770,42 @@ void MainApplication_vAddDataToBuffers_I2C()
     CAN_vTransmitFrame(frame);
 }
 
-uint8_t BasicOperations_BinarySearch(MainApplication_LookUpTable * table, uint8_t startIndex, uint8_t endIndex, uint8_t searchedValue)
+uint8_t BasicOperations_BinarySearch(MainApplication_LookUpTable * table, uint8_t startIndex, uint8_t endIndex, uint8_t searchedValue, bool searchBy)
 {
-    while (startIndex <= endIndex)
+    switch (searchBy)
     {
-        uint8_t middle = startIndex + ((endIndex - startIndex) / 2);
-        if (table[middle].Receiver == searchedValue)
-            return middle;
+            /* Searching by receiver if searchBy == 0 */
+        case 0:
 
-        if (table[middle].Receiver < searchedValue)
-            startIndex = middle + 1;
-        else
-            endIndex = middle - 1;
+            while (startIndex <= endIndex)
+            {
+                /* Right shifting with one place means division by two*/
+                uint8_t middle = startIndex + ((endIndex - startIndex) >> 1);
+                if (table[middle].Receiver == searchedValue)
+                    return middle;
+
+                if (table[middle].Receiver < searchedValue)
+                    startIndex = middle + 1;
+                else
+                    endIndex = middle - 1;
+            }
+            break;
+            /* Searching by TargetLocation if searchBy == 1 */
+        case 1:
+            while (startIndex <= endIndex)
+            {
+                /* Right shifting with one place means division by two*/
+                uint8_t middle = startIndex + ((endIndex - startIndex) >> 1);
+                if (table[middle].TargetLocation == searchedValue)
+                    return middle;
+
+                if (table[middle].TargetLocation < searchedValue)
+                    startIndex = middle + 1;
+                else
+                    endIndex = middle - 1;
+            }
+            break;
     }
-
     /* return -1 if the element is not found */
     return 0xFF;
 }

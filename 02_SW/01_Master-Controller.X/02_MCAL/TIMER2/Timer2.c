@@ -119,6 +119,7 @@ void Timer2_vInit(Timer2_OutputFrequency targetFrequency)
             T2PR = 0x1D;
             break;
     }
+    Timer2_vStart();
 }
 
 void Timer2_vStart(void)

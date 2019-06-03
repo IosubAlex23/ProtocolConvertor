@@ -1,5 +1,5 @@
 /**
- * \file       Source.c
+ * \file       DataLogger.c
  * \author     Iosub Mihai Alexandru
  * \brief      Short description for this source file
  */
@@ -7,7 +7,7 @@
 /*----------------------------------------------------------------------------*/
 /*                                 Includes                                   */
 /*----------------------------------------------------------------------------*/
-#include "Interrupt.h"
+
 /*----------------------------------------------------------------------------*/
 /*                               Local defines                                */
 /*----------------------------------------------------------------------------*/
@@ -42,16 +42,8 @@
  */
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of global functions                     */
-
 /*----------------------------------------------------------------------------*/
-void INTERRUPT_Initialize(void)
-{
-    INTCON0bits.GIEH = 1; // Enable high priority interrupts
-    INTCON0bits.GIEL = 1; // Enable low priority interrupts
-    INTCON0bits.IPEN = 1; // Enable interrupt priority
-    /*PIE2bits.SPI1IE = 1; // Enable spi interrupt
-    PIE2bits.SPI1RXIE = 1; // Enable SPI interrupt*/
-}
+
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of local functions                      */
 /*----------------------------------------------------------------------------*/

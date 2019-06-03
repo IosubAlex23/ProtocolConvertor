@@ -19,7 +19,7 @@
 #define SPI_MOSI                    (0xC1)
 #define SPI_MISO                    (0xC0)
 #define SPI_SLAVE_EN                (0xA5)
-#define SPI_FIFO_LENGTH             (32)
+#define SPI_FIFO_LENGTH             (64)
 
 /*----------------------------------------------------------------------------*/
 /*                              Local data types                              */
@@ -101,14 +101,19 @@ void SPI_vInit(uint8_t OperationMode)
         RC1PPS = 0x1F; //SPI_MOSI_INPUT:RC1
         SPI1SDIPPS = 0x10; //SPI_MISO_OUTPUT:RC0
         RA5PPS = 0x20; //SPI_SS_INPUT:RA5
-        SPI1BAUD = 0x1F; //1MHz
-        SPI1CON1 = 0x40;
-        SPI1CON2 = 0X07;
+        SPI1BAUD = 0x77; //200kHz @ 48MHz FOSC
+        SPI1CON1 = 0x44;
+        SPI1CON2 = 0X03;
         SPI1CON0 = 0x83; //BMODE last byte; LSBF MSb first; EN enabled; MST bus master; 
         GPIO_vSetPinDirection(SPI_SCK, GPIO_OUTPUT_PIN);
         GPIO_vSetPinDirection(SPI_MOSI, GPIO_OUTPUT_PIN);
         GPIO_vSetPinDirection(SPI_MISO, GPIO_INPUT_PIN);
         GPIO_vSetPinDirection(SPI_SLAVE_EN, GPIO_OUTPUT_PIN);
+        INTCON0bits.GIEH = 0; // disable high priority interrupts
+        INTCON0bits.GIEL = 0; // disable low priority interrupts
+        INTCON0bits.IPEN = 0; // disable interrupt priority
+        PIE2bits.SPI1IE = 0; // disable spi interrupt
+        PIE2bits.SPI1RXIE = 0; // disable SPI interrupt
     }
     else if (OperationMode == SLAVE_MODE)
     {
@@ -124,6 +129,11 @@ void SPI_vInit(uint8_t OperationMode)
         GPIO_vSetPinDirection(SPI_MOSI, GPIO_INPUT_PIN);
         GPIO_vSetPinDirection(SPI_MISO, GPIO_OUTPUT_PIN);
         GPIO_vSetPinDirection(SPI_SLAVE_EN, GPIO_INPUT_PIN);
+        INTCON0bits.GIEH = 1; // enable high priority interrupts
+        INTCON0bits.GIEL = 1; // enable low priority interrupts
+        INTCON0bits.IPEN = 1; // enable interrupt priority
+        PIE2bits.SPI1IE = 1; // enable spi interrupt
+        PIE2bits.SPI1RXIE = 1; // enable SPI interrupt
     }
     else
     {
@@ -145,6 +155,7 @@ uint8_t SPI_uiExchangeXBytes(uint8_t *data, uint8_t NoOfBytes)
 {
     uint8_t byte_count = 0u;
     uint8_t ReceivedData; //Represents the received data
+    SPI1TCNTH = 0x00;
     SPI1TCNTL = NoOfBytes;
 
     for (byte_count = 0u; byte_count < NoOfBytes; byte_count++)
@@ -152,7 +163,8 @@ uint8_t SPI_uiExchangeXBytes(uint8_t *data, uint8_t NoOfBytes)
         if (TRANSMIT_BUFFER_EMPTY == 1u)
         {
             SPI_vTransmit(data[byte_count]);
-            ReceivedData = SPI_uiReceive();
+            data[byte_count+3] = SPI_uiReceive();
+            //            ReceivedData = SPI_uiReceive();
         }
         else
         {

@@ -225,10 +225,20 @@ I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t *
                     }
                     else
                     {
-                        I2C2_WRITE_TXB(I2C_SlaveResponseData.DataForResponse[I2C_SlaveResponseData.StackIndex]);
+
+
                         if (I2C_SlaveResponseData.StackIndex < (I2C_SlaveResponseData.NumberOfBytesToBeSent - 1))
                         {
-                            I2C_SlaveResponseData.StackIndex++;
+                            if (I2C_SlaveResponseData.StackIndex != 0)
+                            {
+                                I2C2_WRITE_TXB(I2C_SlaveResponseData.DataForResponse[I2C_SlaveResponseData.StackIndex]);
+
+                                I2C_SlaveResponseData.StackIndex++;
+                            }
+                            else
+                            {
+                                I2C2_WRITE_TXB(I2C_SlaveResponseData.DataPendingValue);
+                            }
                         }
                         else
                         {
@@ -236,6 +246,7 @@ I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t *
                             I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
                             returnValue = I2C_REQUEST_SERVED;
                         }
+
                     }
                 }
                     /* If master wants to write to slave read data from RXB */
@@ -275,10 +286,19 @@ I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t *
                 }
                 else
                 {
+
                     I2C2_WRITE_TXB(I2C_SlaveResponseData.DataForResponse[I2C_SlaveResponseData.StackIndex]);
                     if (I2C_SlaveResponseData.StackIndex < (I2C_SlaveResponseData.NumberOfBytesToBeSent - 1))
                     {
-                        I2C_SlaveResponseData.StackIndex++;
+                        if (I2C_SlaveResponseData.StackIndex == 0)
+                        {
+                            I2C2_WRITE_TXB(I2C_SlaveResponseData.DataForResponse[I2C_SlaveResponseData.StackIndex]);
+                            I2C_SlaveResponseData.StackIndex++;
+                        }
+                        else
+                        {
+                            I2C2_WRITE_TXB(I2C_SlaveResponseData.DataPendingValue);
+                        }
                     }
                     else
                     {
@@ -287,6 +307,7 @@ I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t *
 
                         returnValue = I2C_REQUEST_SERVED;
                     }
+
                 }
             }
                 /* If master wants to write to slave read data from RXB */
@@ -300,7 +321,7 @@ I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t *
                 }
             }
         }
-
+        *matchedAdress = I2C2_uiGetMatchedAdress();
     }
 
     return returnValue;

@@ -479,8 +479,11 @@ CAN_Buffer * CAN_uiGetResponseBufferByIdentifier(uint32_t targetIdentifier)
             {
                 if (targetIdentifier == CAN_uiGetIdentifier(CAN_ReceiveBuffers[index]))
                 {
-                    returnValue = &CAN_ReceiveBuffers[index];
-                    return returnValue;
+                    if (MASK_8BIT_GET_BIT(CAN_ReceiveBuffers[index]->BxDLC, CAN_BxDLC_RTR_POSITION) == 0)
+                    {
+                        returnValue = CAN_ReceiveBuffers[index];
+                        return returnValue;
+                    }
                 }
             }
         }
@@ -490,7 +493,7 @@ CAN_Buffer * CAN_uiGetResponseBufferByIdentifier(uint32_t targetIdentifier)
             {
                 if (targetIdentifier == CAN_uiGetIdentifier(CAN_ProgrammableBuffers[index]))
                 {
-                    returnValue = &CAN_ProgrammableBuffers[index];
+                    returnValue = CAN_ProgrammableBuffers[index];
                     return returnValue;
                 }
             }
