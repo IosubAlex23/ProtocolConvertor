@@ -80,6 +80,7 @@ static const uint8_t I2C_DefaultResponsePendingValue = 0x55;
 /*                             Local data at ROM                              */
 /*----------------------------------------------------------------------------*/
 static I2C_SlaveResponse I2C_SlaveResponseData;
+static uint8_t I2C_StopDetected = false;
 /*----------------------------------------------------------------------------*/
 /*                       Declaration of local functions                       */
 /*----------------------------------------------------------------------------*/
@@ -105,10 +106,11 @@ void I2C_vInit(void)
     // de aici in jos is copy paste de pe proj vechi
     TRISC &= ~I2C2_PORT_MASK;
     ANSELC &= ~I2C2_PORT_MASK;
-    //WPUC |= I2C2_PORT_MASK;
+    WPUC |= I2C2_PORT_MASK;
     ODCONC |= I2C2_PORT_MASK;
+    SLRCONC |= I2C2_PORT_MASK;
 
-    //    RC3I2C = 0x61; /* pULL uP, Slew Rate & Threshold */
+    RC3I2C = 0x20; /* pULL uP, Slew Rate & Threshold */
     //    RC2I2C = 0x61; /* pULL uP, Slew Rate & Threshold */
 
     RC3PPS = 0x23; /* Selecting which module outputs on RC3 */
@@ -191,6 +193,7 @@ void I2C_vJoinAsSlave(uint8_t adresssAsSlave)
     MASK_8BIT_SET_BIT(I2C2CON1, I2C_ACKCNT_POSITION);
     /* Clearing ACKDT */
     I2C2_SET_ACKDT();
+    I2C2PIRbits.PCIF = 0;
 
     I2C_SlaveResponseData.DataPendingValue = I2C_DefaultResponsePendingValue;
     I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
@@ -207,17 +210,18 @@ I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t *
 {
     I2C_SlaveOperationType returnValue = I2C_NO_NEW_DATA;
     bool StackIncremented = false;
-    if (I2C2PIRbits.SCIF == 1)
-    {
-        I2C_SlaveResponseData.StackIndex = 0;
-        I2C2STAT1bits.CLRBF = 1;
-    }
+
     if (I2C2STAT0bits.SMA == 1)
     {
         //        if (PIR7bits.I2C2IF == 1)
         //        {
         if (I2C2STAT0bits.R == 1)
         {
+            if (I2C2PIRbits.SCIF == 1)
+            {
+                I2C_SlaveResponseData.StackIndex = 0;
+                I2C2STAT1bits.CLRBF = 1;
+            }
             if (I2C2STAT1bits.TXBE == 1)
             {
 
@@ -281,13 +285,28 @@ I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t *
         }
         else
         {
-            // WRITE
+            I2C_StopDetected = false;
+            if (I2C2PIRbits.SCIF == 1)
+            {
+                I2C_SlaveResponseData.StackIndex = 0;
+
+            }
+            if ((I2C2PIRbits.WRIF == 1) && (I2C2STAT1bits.RXBF == 1))
+            {
+                *receivedData = I2C2_READ_RXB();
+                returnValue = I2C_NEW_DATA_RECEIVED;
+            }
+            else
+            {
+                returnValue = I2C_NO_NEW_DATA;
+            }
         }
 
         if (I2C2PIRbits.PCIF == 1)
         {
             I2C2PIRbits.PCIF = 0;
-            I2C2STAT1bits.CLRBF = 1;
+            I2C_StopDetected = true;
+            //            I2C2STAT1bits.CLRBF = 1;
         }
         else if (I2C2PIRbits.ADRIF == 1)
         {
@@ -367,14 +386,10 @@ void I2C2_vWaitACK(void)
 
 bool I2C_bStopDetected(void)
 {
-    bool returnValue = false;
-    if (1u == I2C2PIRbits.PCIF)
+    bool returnValue = I2C_StopDetected;
+    if (I2C_StopDetected == true)
     {
-        returnValue = true;
-        I2C2PIRbits.PCIF = 0;
-        I2C_SlaveResponseData.StackIndex = 0;
-        I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
-        //I2C2_vModuleDisable();
+        I2C_StopDetected = false;
     }
     return returnValue;
 }
