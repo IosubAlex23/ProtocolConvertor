@@ -109,9 +109,6 @@ void SPI_vInit(uint8_t OperationMode)
         GPIO_vSetPinDirection(SPI_MOSI, GPIO_OUTPUT_PIN);
         GPIO_vSetPinDirection(SPI_MISO, GPIO_INPUT_PIN);
         GPIO_vSetPinDirection(SPI_SLAVE_EN, GPIO_OUTPUT_PIN);
-        INTCON0bits.GIEH = 0; // disable high priority interrupts
-        INTCON0bits.GIEL = 0; // disable low priority interrupts
-        INTCON0bits.IPEN = 0; // disable interrupt priority
         PIE2bits.SPI1IE = 0; // disable spi interrupt
         PIE2bits.SPI1RXIE = 0; // disable SPI interrupt
     }
@@ -129,9 +126,6 @@ void SPI_vInit(uint8_t OperationMode)
         GPIO_vSetPinDirection(SPI_MOSI, GPIO_INPUT_PIN);
         GPIO_vSetPinDirection(SPI_MISO, GPIO_OUTPUT_PIN);
         GPIO_vSetPinDirection(SPI_SLAVE_EN, GPIO_INPUT_PIN);
-        INTCON0bits.GIEH = 1; // enable high priority interrupts
-        INTCON0bits.GIEL = 1; // enable low priority interrupts
-        INTCON0bits.IPEN = 1; // enable interrupt priority
         PIE2bits.SPI1IE = 1; // enable spi interrupt
         PIE2bits.SPI1RXIE = 1; // enable SPI interrupt
     }
@@ -163,7 +157,7 @@ uint8_t SPI_uiExchangeXBytes(uint8_t *data, uint8_t NoOfBytes)
         if (TRANSMIT_BUFFER_EMPTY == 1u)
         {
             SPI_vTransmit(data[byte_count]);
-            data[byte_count+3] = SPI_uiReceive();
+            data[byte_count + 3] = SPI_uiReceive();
             //            ReceivedData = SPI_uiReceive();
         }
         else

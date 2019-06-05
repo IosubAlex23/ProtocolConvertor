@@ -178,12 +178,14 @@ void CAN_vRequestTransceiverNormalMode(void);
 /*----------------------------------------------------------------------------*/
 void CAN_vInit(CAN_Configuration * config)
 {
+    uint8_t index;
     CAN_vRequestTransceiverNormalMode();
     /* Preparing the TX, RX and programmable buffers
      * 
      * Cast to (CAN_Buffer *) is necessary in order to remove warning for incompatible conversion types*/
     CAN_ReceiveBuffers[0] = (CAN_Buffer *) & RXB0CONbits;
     CAN_ReceiveBuffers[1] = (CAN_Buffer *) & RXB1CONbits;
+
     CAN_TransmitBuffers[0] = (CAN_Buffer *) & TXB0CONbits;
     CAN_TransmitBuffers[1] = (CAN_Buffer *) & TXB1CONbits;
     CAN_TransmitBuffers[2] = (CAN_Buffer *) & TXB2CONbits;
@@ -193,6 +195,20 @@ void CAN_vInit(CAN_Configuration * config)
     CAN_ProgrammableBuffers[3] = (CAN_Buffer *) & B3CONbits;
     CAN_ProgrammableBuffers[4] = (CAN_Buffer *) & B4CONbits;
     CAN_ProgrammableBuffers[5] = (CAN_Buffer *) & B5CONbits;
+
+    /* Setting all buffers as free */
+    for (index = 0; index < CAN_NUMBER_OF_TXBF; index++)
+    {
+        CAN_vSetBufferAsFree(CAN_TransmitBuffers[index]);
+    }
+    for (index = 0; index < CAN_NUMBER_OF_RXBF; index++)
+    {
+        CAN_vSetBufferAsFree(CAN_ReceiveBuffers[index]);
+    }
+    for (index = 0; index < CAN_NUMBER_OF_PROGRAMMABLE_BUFFERS; index++)
+    {
+        CAN_vSetBufferAsFree(CAN_ProgrammableBuffers[index]);
+    }
     /* Configuring the pins as I/O*/
 
 
@@ -445,7 +461,7 @@ uint32_t CAN_uiGetIdentifier(CAN_Buffer * buffer)
 
 void CAN_vSetBufferAsFree(CAN_Buffer * target)
 {
-    MASK_8BIT_CLEAR_BIT(target->BxCON, CAN_RXFUL_POSITION);
+    MASK_8BIT_SET_BIT(target->BxCON, CAN_RXFUL_POSITION);
 }
 
 bool CAN_bBufferHasNewData(CAN_Buffer * target)
@@ -493,8 +509,11 @@ CAN_Buffer * CAN_uiGetResponseBufferByIdentifier(uint32_t targetIdentifier)
             {
                 if (targetIdentifier == CAN_uiGetIdentifier(CAN_ProgrammableBuffers[index]))
                 {
-                    returnValue = CAN_ProgrammableBuffers[index];
-                    return returnValue;
+                    if (MASK_8BIT_GET_BIT(CAN_ReceiveBuffers[index]->BxDLC, CAN_BxDLC_RTR_POSITION) == 0)
+                    {
+                        returnValue = CAN_ProgrammableBuffers[index];
+                        return returnValue;
+                    }
                 }
             }
         }

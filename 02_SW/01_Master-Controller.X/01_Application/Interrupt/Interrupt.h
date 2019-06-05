@@ -44,4 +44,8 @@
  * \return    None 
  */
 void INTERRUPT_Initialize(void);
+
+void INTERRUPT_GlobalInterruptDisable(void);
+
+void INTERRUPT_GlobalInterruptEnable(void);
 #endif /* HEAD_H_ */

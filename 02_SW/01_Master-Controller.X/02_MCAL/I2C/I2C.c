@@ -62,6 +62,7 @@ typedef struct
     uint8_t NumberOfBytesToBeSent;
     uint8_t StackIndex;
     uint8_t DataPendingValue;
+    bool FirstRequestedByteSent;
 } I2C_SlaveResponse;
 /*----------------------------------------------------------------------------*/
 /*                             Global data at RAM                             */
@@ -173,6 +174,7 @@ void I2C_vMasterRead(uint8_t targetAdress, uint8_t numberOfBytes, uint8_t * stor
 
 void I2C_vJoinAsSlave(uint8_t adresssAsSlave)
 {
+    uint8_t index;
     MASK_8BIT_SET_BIT(I2C2STAT1, I2C_CLRBF_POSITION);
     /* Setting Slave 7 bit address */
     I2C2_SET_SLAVE_MODE();
@@ -181,8 +183,8 @@ void I2C_vJoinAsSlave(uint8_t adresssAsSlave)
     //    I2C1ADR1 = (adresssAsSlave << 1u); /* ADRx<7:1>:7-bit Slave Address => Address 9*/
     //    I2C1ADR2 = (adresssAsSlave << 1u); /* ADRx<7:1>:7-bit Slave Address => Address 9*/
     //    I2C1ADR3 = (adresssAsSlave << 1u); /* ADRx<7:1>:7-bit Slave Address => Address 9*/
-    /* Setting ADRIE */
-    MASK_8BIT_SET_BIT(I2C2PIE, I2C_ADRIE_POSITION);
+    /* Clearing ADRIE */
+    MASK_8BIT_CLEAR_BIT(I2C2PIE, I2C_ADRIE_POSITION);
     /* Clearing ACKTIE */
     MASK_8BIT_CLEAR_BIT(I2C2PIE, I2C_ACKTIE_POSITION);
     /* Setting ACKCNT */
@@ -193,136 +195,117 @@ void I2C_vJoinAsSlave(uint8_t adresssAsSlave)
     I2C_SlaveResponseData.DataPendingValue = I2C_DefaultResponsePendingValue;
     I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
     I2C_SlaveResponseData.StackIndex = 0;
-
+    I2C_SlaveResponseData.FirstRequestedByteSent = false;
+    for (index = 0; index < 8; index++)
+    {
+        I2C_SlaveResponseData.DataForResponse[index] = I2C_DefaultResponsePendingValue + 1 + index;
+    }
     I2C2_vModuleEnable();
 }
 
 I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t * matchedAdress)
 {
     I2C_SlaveOperationType returnValue = I2C_NO_NEW_DATA;
-    if (1u == I2C2_IS_SLAVE_ACTIVE())
+    bool StackIncremented = false;
+    if (I2C2PIRbits.SCIF == 1)
     {
-        I2C2_SET_CNT_VALUE(0xFF);
-        /* if == 0 it means the last byte was an address*/
-        if (0u == I2C2_LAST_BYTE_IS_DATA())
+        I2C_SlaveResponseData.StackIndex = 0;
+        I2C2STAT1bits.CLRBF = 1;
+    }
+    if (I2C2STAT0bits.SMA == 1)
+    {
+        //        if (PIR7bits.I2C2IF == 1)
+        //        {
+        if (I2C2STAT0bits.R == 1)
         {
-            if (I2C2ADR0 == (I2C2ADB0 & 0xFE))
+            if (I2C2STAT1bits.TXBE == 1)
             {
-                I2C2_SET_ACKDT();
-                /* If master wants to read from slave put data in TXB*/
-                if (1u == I2C2_IS_READ_REQUEST())
+
+                if ((I2C_SlaveResponseData.NumberOfBytesToBeSent > 0) && (StackIncremented == false) && (I2C_SlaveResponseData.FirstRequestedByteSent == true) && (I2C_SlaveResponseData.StackIndex > 0))
                 {
-                    while (0u == I2C2_IS_TXB_EMPTY())
+                    I2C2_WRITE_TXB(I2C_SlaveResponseData.DataForResponse[I2C_SlaveResponseData.StackIndex]);
+                    I2C_SlaveResponseData.StackIndex++;
+                    if (I2C_SlaveResponseData.StackIndex >= I2C_SlaveResponseData.NumberOfBytesToBeSent)
                     {
-                        I2C2_RELEASE_CLOCK();
+                        I2C_SlaveResponseData.StackIndex = 0;
+                        I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
+                        I2C_SlaveResponseData.FirstRequestedByteSent = false;
                     }
-                    /* This responds to data reads with the default Data Pending Value or with the actual data */
-                    if (0 == I2C_SlaveResponseData.NumberOfBytesToBeSent)
-                    {
-                        I2C2_WRITE_TXB(I2C_SlaveResponseData.DataPendingValue);
-                        returnValue = I2C_DATA_REQUESTED;
-
-                    }
-                    else
-                    {
-
-
-                        if (I2C_SlaveResponseData.StackIndex < (I2C_SlaveResponseData.NumberOfBytesToBeSent - 1))
-                        {
-                            if (I2C_SlaveResponseData.StackIndex != 0)
-                            {
-                                I2C2_WRITE_TXB(I2C_SlaveResponseData.DataForResponse[I2C_SlaveResponseData.StackIndex]);
-
-                                I2C_SlaveResponseData.StackIndex++;
-                            }
-                            else
-                            {
-                                I2C2_WRITE_TXB(I2C_SlaveResponseData.DataPendingValue);
-                            }
-                        }
-                        else
-                        {
-                            I2C_SlaveResponseData.StackIndex = 0;
-                            I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
-                            returnValue = I2C_REQUEST_SERVED;
-                        }
-
-                    }
+                    StackIncremented = true;
+                    returnValue = I2C_REQUEST_SERVED;
                 }
-                    /* If master wants to write to slave read data from RXB */
-                else if (0u == I2C2_IS_READ_REQUEST())
+                else
                 {
-                    while (0u == I2C2_IS_RXB_FULL())
-                    {
-                        I2C2_RELEASE_CLOCK();
-                    }
-                    returnValue = I2C_NEW_DATA_RECEIVED;
-                    *receivedData = I2C2RXB;
-                    *matchedAdress = I2C2_uiGetMatchedAdress();
+                    I2C2_WRITE_TXB(I2C_SlaveResponseData.DataPendingValue);
+                    returnValue = I2C_DATA_REQUESTED;
                 }
             }
             else
             {
-                I2C2_SET_NACKDT();
+                returnValue = I2C_NO_NEW_DATA;
             }
-            I2C2_RELEASE_CLOCK();
-        }
-            /* Last byte was data */
-        else
-        {
-            /* If master wants to read from slave put data in TXB*/
-            if (1u == I2C2_IS_READ_REQUEST())
+            if (I2C2PIRbits.ADRIF == 1)
             {
-                while (0u == I2C2_IS_TXB_EMPTY())
-                {
-                    I2C2_RELEASE_CLOCK();
-                }
-                /* This responds to data reads with the default Data Pending Value or with the actual data */
-                if (0 == I2C_SlaveResponseData.NumberOfBytesToBeSent)
-                {
-                    I2C2_WRITE_TXB(I2C_SlaveResponseData.DataPendingValue);
-                    returnValue = I2C_DATA_REQUESTED;
-
-                }
-                else
+                I2C2STAT1bits.CLRBF = 1;
+                I2C2PIRbits.ADRIF = 0;
+                if (I2C2STAT1bits.TXBE == 1)
                 {
 
-                    I2C2_WRITE_TXB(I2C_SlaveResponseData.DataForResponse[I2C_SlaveResponseData.StackIndex]);
-                    if (I2C_SlaveResponseData.StackIndex < (I2C_SlaveResponseData.NumberOfBytesToBeSent - 1))
+                    if ((I2C_SlaveResponseData.NumberOfBytesToBeSent > 0) && (StackIncremented == false) && (I2C_SlaveResponseData.FirstRequestedByteSent == false) && (I2C_SlaveResponseData.StackIndex == 0))
                     {
-                        if (I2C_SlaveResponseData.StackIndex == 0)
+                        I2C_SlaveResponseData.FirstRequestedByteSent = true;
+                        I2C2_WRITE_TXB(I2C_SlaveResponseData.DataForResponse[I2C_SlaveResponseData.StackIndex]);
+                        I2C_SlaveResponseData.StackIndex++;
+                        if (I2C_SlaveResponseData.StackIndex >= I2C_SlaveResponseData.NumberOfBytesToBeSent)
                         {
-                            I2C2_WRITE_TXB(I2C_SlaveResponseData.DataForResponse[I2C_SlaveResponseData.StackIndex]);
-                            I2C_SlaveResponseData.StackIndex++;
+                            I2C_SlaveResponseData.StackIndex = 0;
+                            I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
+                            I2C_SlaveResponseData.FirstRequestedByteSent = false;
                         }
-                        else
-                        {
-                            I2C2_WRITE_TXB(I2C_SlaveResponseData.DataPendingValue);
-                        }
-                    }
-                    else
-                    {
-                        I2C_SlaveResponseData.StackIndex = 0;
-                        I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
-
+                        StackIncremented = true;
                         returnValue = I2C_REQUEST_SERVED;
                     }
 
+                    else
+                    {
+                        I2C2_WRITE_TXB(I2C_SlaveResponseData.DataPendingValue);
+                        returnValue = I2C_DATA_REQUESTED;
+                    }
                 }
-            }
-                /* If master wants to write to slave read data from RXB */
-            else if (0u == I2C2_IS_READ_REQUEST())
-            {
-                if (1u == I2C2_IS_RXB_FULL())
+                else
                 {
-                    returnValue = I2C_NEW_DATA_RECEIVED;
-                    *receivedData = I2C2RXB;
-                    *matchedAdress = I2C2_uiGetMatchedAdress();
+                    returnValue = I2C_NO_NEW_DATA;
                 }
+                I2C2_RELEASE_CLOCK();
             }
         }
-        *matchedAdress = I2C2_uiGetMatchedAdress();
+        else
+        {
+            // WRITE
+        }
+
+        if (I2C2PIRbits.PCIF == 1)
+        {
+            I2C2PIRbits.PCIF = 0;
+            I2C2STAT1bits.CLRBF = 1;
+        }
+        else if (I2C2PIRbits.ADRIF == 1)
+        {
+            I2C2PIRbits.ADRIF = 0;
+        }
+
+        I2C2_RELEASE_CLOCK();
+        //        }
     }
+    if (I2C2PIRbits.SCIF == 1)
+    {
+        I2C2_SET_CNT_VALUE(0xff);
+        I2C2CON1bits.ACKCNT = 0;
+        I2C2PIRbits.SCIF = 0;
+    }
+
+
+    *matchedAdress = I2C2_uiGetMatchedAdress();
 
     return returnValue;
 }

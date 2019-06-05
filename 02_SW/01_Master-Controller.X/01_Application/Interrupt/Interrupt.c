@@ -52,6 +52,20 @@ void INTERRUPT_Initialize(void)
     /*PIE2bits.SPI1IE = 1; // Enable spi interrupt
     PIE2bits.SPI1RXIE = 1; // Enable SPI interrupt*/
 }
+
+void INTERRUPT_GlobalInterruptDisable(void)
+{
+    INTCON0bits.GIEH = 0; // Enable high priority interrupts
+    INTCON0bits.GIEL = 0; // Enable low priority interrupts
+    INTCON0bits.IPEN = 0; // Enable interrupt priority
+}
+
+void INTERRUPT_GlobalInterruptEnable(void)
+{
+    INTCON0bits.GIEH = 1; // Enable high priority interrupts
+    INTCON0bits.GIEL = 1; // Enable low priority interrupts
+    INTCON0bits.IPEN = 1; // Enable interrupt priority
+}
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of local functions                      */
 /*----------------------------------------------------------------------------*/
