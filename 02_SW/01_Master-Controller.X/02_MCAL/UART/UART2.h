@@ -19,6 +19,13 @@
 /*----------------------------------------------------------------------------*/
 /*                             Defines and macros                             */
 /*----------------------------------------------------------------------------*/
+#define TX2_IS_ENABLE               (MASK_8BIT_GET_BIT(U2CON0,5))   // Transmit Enable bit
+#define TX2_INTERRUPT_FLAG          (MASK_8BIT_GET_BIT(PIR7,5))     // UART2 Transmit Interrupt Flag bit   
+#define RX2_INTERRUPT_FLAG          (MASK_8BIT_GET_BIT(PIR7,4))     // UART2 Receive Interrupt Flag bit
+#define TX2_BUFFER_FULL_STATUS      (MASK_8BIT_GET_BIT(U2FIFO,4))     // UART2 Transmit Buffer Full Status bit: 1 = Transmit buffer is full
+                                                                      //                                        0 = Transmit buffer is not full  
+#define RX2_BUFFER_FULL_STATUS          (MASK_8BIT_GET_BIT(U2FIFO,0))     // Receive Buffer Full Status bit     1 = Receive buffer is full
+                                                                          //                                    0 = Receive buffer is not full
 
 /*----------------------------------------------------------------------------*/
 /*                                 Data types                                 */
@@ -47,7 +54,7 @@ void UART2_vInit(void);
  * \param     valSend - represents value wich to be send on TX
  * \return    None 
  */
-void UART2_uiTransmitter(uint8_t valSend);
+void UART2_vTransmitter(uint8_t valSend);
 
 /**
  * \brief     This function is used for receive values on UART Asynchronous Receiver

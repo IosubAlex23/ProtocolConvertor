@@ -12,9 +12,6 @@
 /*----------------------------------------------------------------------------*/
 /*                               Local defines                                */
 /*----------------------------------------------------------------------------*/
-#define TX2_IS_ENABLE        (MASK_8BIT_GET_BIT(U2CON0,5))   // Transmit Enable bit
-#define TX2_INTERRUPT_FLAG   (MASK_8BIT_GET_BIT(PIR7,5))     // UART2 Transmit Interrupt Flag bit   
-#define RX2_INTERRUPT_FLAG   (MASK_8BIT_GET_BIT(PIR7,4))     // UART2 Receive Interrupt Flag bit
 
 /*----------------------------------------------------------------------------*/
 /*                              Local data types                              */
@@ -56,21 +53,21 @@ void UART2_vInit(void)
     U2RXPPS = 0x09;              //  UART1 => set RX on PORTB pin 1 
     U2CON0 = 0xB0;              //  BRGS:1(HighSpeed) / TXEN:1(Transmie Enable) / RXEN:1(Receive Enable) 
     U2CON1 = 0x80;              //  ON:1(Serial Port Enable))
-    U2CON2 = RESET_VALUE;       //  HW flow control RTS/CTS 
+    U2CON2 = 0x00;       //  HW flow control RTS/CTS 
     U2ERRIR = RESET_VALUE;
     U2ERRIR = RESET_VALUE;
     U2UIR = RESET_VALUE;
     U2FIFO = RESET_VALUE;
     U2BRG = DEFAULT_BAUDRATE;
-    U2P1L = 0x01;
-    U2P2 = RESET_VALUE;
-    U2P3 = RESET_VALUE;
+    //U2P1L = RESET_VALUE;
+    //U2P2 = RESET_VALUE;
+    //U2P3 = RESET_VALUE;
     U2TXCHK  = RESET_VALUE;
 }
 
-void UART2_uiTransmitter(uint8_t valSend)
+void UART2_vTransmitter(uint8_t valSend)
 {   
-    while(STD_LOW == TX2_INTERRUPT_FLAG) // TX complete
+    while(STD_HIGH == TX2_BUFFER_FULL_STATUS) // TX complete
     {
     }
     U2TXB = valSend; 
@@ -78,10 +75,10 @@ void UART2_uiTransmitter(uint8_t valSend)
 
 uint8_t UART2_uiReception()
 {
-    while(STD_LOW == RX2_INTERRUPT_FLAG)
-    {
-        
-    } 
+//    while(STD_LOW == RX2_INTERRUPT_FLAG)
+//    {
+//        
+//    } 
    return U2RXB;
 }
 
@@ -158,12 +155,12 @@ void UART2_vHandshakeFlowControl(HandshakeFlowControl FlowControl)
 
 bool UART2_bRX_Ready()
 {
-    return (bool)RX2_INTERRUPT_FLAG;
+    return (bool)RX2_BUFFER_FULL_STATUS;
 }
         
 bool UART2_bTX_Ready()
 {
-    return (bool)(TX2_INTERRUPT_FLAG && TX2_IS_ENABLE);
+    return (bool)(TX2_BUFFER_FULL_STATUS && TX2_IS_ENABLE);
 }
 
         

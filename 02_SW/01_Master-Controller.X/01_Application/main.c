@@ -1,42 +1,104 @@
 
 #include <pic18.h>
-
 #include "../mcc_generated_files/mcc.h"
+#include "../03_Common/types.h"
 #include "../02_MCAL/GPIO/GPIO.h"
-#include "../02_MCAL/TIMER0/Timer0.h"
+//#include "../02_MCAL/TIMER0/Timer0.h"
 #include "TimeoutModule/TimeoutModule.h"
 #include "../02_MCAL/UART/UART1.h"
 #include "../02_MCAL/UART/UART2.h"
 #include "../02_MCAL/RS232/RS232.h"
+#include "../02_MCAL/LIN/LIN.h"
 #include "../02_MCAL/SPI/SPI.h"
-
+  
 /*
                          Main application
- */
+*/
+
+//
+//void main(void)
+//{
+//    // Initialize the device
+//
+//    SYSTEM_Initialize();
+//    LIN_vInit(LIN_MASTER);
+//    
+//    volatile uint8_t i = 0;
+//    uint8_t j,k = 0;
+//    uint8_t a[3] = {0xff,0x22,0x43};
+//    
+//    while (1)
+//    {
+////        LIN_vTransmit(0x3A,2,a);  
+//        
+//        
+//        i = MASK_8BIT_GET_BIT(U2ERRIR, 1);
+//        if(i == 1)
+//        {
+//            UART2_uiReception();
+//            UART2_uiReception();
+//            MASK_8BIT_CLEAR_BIT(U2ERRIR, 1);
+//        }
+//               
+//        __delay_ms(1);
+//    }
+//}
+
+
+
+
+
+
 void main(void)
 {
     // Initialize the device
-    SYSTEM_Initialize();
-    
-    RS232_actualConfig.communicationBaudGenSpeed = HIGH_SPEED;
-    RS232_actualConfig.communicationDesiredBaud = BAUD_19200;
-    RS232_actualConfig.communicationUartMode = ASYNC_8BIT;
-    RS232_actualConfig.communicationPolarity = NON_INVERTED;
-    RS232_actualConfig.communicationStopBitMode = ONE_STOP_BIT;
-    RS232_vInit(&RS232_actualConfig);
-    SPI_vInit(MASTER_MODE);
-    
-    
 
-    uint8_t i = 7;
-    uint8_t j = 8;
-    char a[11] = {'h','e','l','l','o',' ','t','h','e','r','e'};
+    SYSTEM_Initialize();
+    LIN_vInit(LIN_MASTER);
+    
+    volatile uint8_t i = 0;
+    uint8_t j,k = 0;
+    uint8_t a[3] = {0xff,0x22,0x43};
+    
     while (1)
     {
-
-        SPI_uiExchangeXBytes(a,11);
+        LIN_vTransmit(0x3A,2,a);  
+        __delay_ms(1);
     }
 }
+
+
+//void main(void)
+//{
+//    SYSTEM_Initialize();
+//    LIN_vInit(LIN_SLAVE);
+//    
+//    uint8_t state_mode = 0;
+//    
+//    while (1)
+//    {
+//        LIN_stateCheck();
+//    }
+//}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -51,8 +113,8 @@ void main(void)
 //#include "../02_MCAL/GPIO/GPIO.h"
 ////#include "../02_MCAL/TIMER0/Timer0.h"
 //#include "TimeoutModule/TimeoutModule.h"
-////#include "../02_MCAL/UART/UART1.h"
-//#include "../02_MCAL/UART/UART2.h"
+//#include "../02_MCAL/UART/UART1.h"
+//#include "../02_MCAL/UART/UART2.h"    
 //#include "../02_MCAL/RS232/RS232.h"
 //#include "../02_MCAL/LIN/LIN.h"
 //#include "../02_MCAL/SPI/SPI.h"
@@ -65,44 +127,126 @@ void main(void)
 //    // Initialize the device
 //    SYSTEM_Initialize();
 //
-//    RS232_actualConfig.communicationBaudGenSpeed = HIGH_SPEED;
-//    RS232_actualConfig.communicationDesiredBaud = BAUD_9600;
-//    RS232_actualConfig.communicationUartMode = LIN_MASTER;
-//    RS232_actualConfig.communicationPolarity = NON_INVERTED;
-//    RS232_actualConfig.communicationStopBitMode = ONE_STOP_BIT;
-//    RS232_vInit(&RS232_actualConfig);
+////    RS232_actualConfig.communicationBaudGenSpeed = HIGH_SPEED;
+////    RS232_actualConfig.communicationDesiredBaud = BAUD_9600;
+////    RS232_actualConfig.communicationUartMode = LIN_SLAVE;
+////    RS232_actualConfig.communicationPolarity = NON_INVERTED;
+////    RS232_actualConfig.communicationStopBitMode = ONE_STOP_BIT;
+////    RS232_vInit(&RS232_actualConfig);
 //    
-//    //LIN_vInit();
+//    LIN_vInit(LIN_SLAVE);
 //
-//    SPI_vInit(MASTER_MODE);
+////    SPI_vInit(MASTER_MODE);
 ////    
 ////
 ////
 //
 //    uint8_t i = 0;
 //    uint8_t j,k = 0;
-//  //  U2P1L = 0x18;
-//    char a[11] = {'h','e','l','l','o',' ','w','o','r','l','d'};
+//    
+//   
+//    while (1)
+//    {
+//        U2P1L = 0x06;
+////        U2P2L = 0x01;
+////        U2P3L = 0x01;
+//
+//        U2TXB =0x03;
+//
+//
+//        
+//        //i = U2P1L;
+//
+//    
+//
+//    }
+//}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//#include <pic18.h>
+//
+//#include "../mcc_generated_files/mcc.h"
+//#include "../02_MCAL/GPIO/GPIO.h"
+//#include "../02_MCAL/TIMER0/Timer0.h"
+//#include "TimeoutModule/TimeoutModule.h"
+//#include "../02_MCAL/UART/UART1.h"
+//#include "../02_MCAL/UART/UART2.h"
+//#include "../02_MCAL/RS232/RS232.h"
+//#include "../02_MCAL/SPI/SPI.h"
+//
+///*
+//                         Main application
+// */
+//void main(void)
+//{
+//    // Initialize the device
+//    SYSTEM_Initialize();
+//    
+//    RS232_actualConfig.communicationBaudGenSpeed = HIGH_SPEED;
+//    RS232_actualConfig.communicationDesiredBaud = BAUD_19200;
+//    RS232_actualConfig.communicationUartMode = ASYNC_8BIT;
+//    RS232_actualConfig.communicationPolarity = NON_INVERTED;
+//    RS232_actualConfig.communicationStopBitMode = ONE_STOP_BIT;
+//    RS232_vInit(&RS232_actualConfig);
+//    SPI_vInit(SLAVE_MODE);
+//    uint8_t state  = 0;
+//    GPIO_vSetPinDirection(0xA0,GPIO_OUTPUT_PIN);
+//    
+//    
+//    
+//
+//    uint8_t i = 7;
+//    uint8_t j = 8;
+//    char a[5] = {'s','a','l','u','t'};
 //    while (1)
 //    {
 //
-//        for(i=0;i<11;i++)
+//        state = SPI_uiExchangeXBytes(a,1);
+//        if(state == 0)
 //        {
-//        
-//            SPI_vMasterTransmit(a[i]); 
-//            j = SPI_uiMasterReceive();
-//            
-//        __delay_ms(3);
+//            GPIO_vSetPinLevel(0xA0, STD_HIGH);
+//        }else if(state == 1)
+//        {
+//            GPIO_vSetPinLevel(0xA0,STD_LOW);
 //        }
-//            
+//        else
+//        {
+//            GPIO_vSetPinLevel(0xA0, STD_HIGH);
+//            __delay_ms(300);
+//            GPIO_vSetPinLevel(0xA0, STD_LOW);
+//            __delay_ms(300);
+//        }
 //        
-//       
-//
-//    
-//
-//        //U2P1L = 0x21;
-//  
-//    
-//
 //    }
 //}
