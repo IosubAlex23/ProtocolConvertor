@@ -50,7 +50,7 @@
 
 #define CAN_MAX_PROGRAMMABLE_BUFFERS         (6u)
 
-#define CAN_PROGRAMMABLE_BUFFER_FLAG_VALUE   (0x10)
+#define CAN_PROGRAMMABLE_BUFFER_FLAG_VALUE   (0x01)
 #define CAN_TXPRI_MASK                       (0x03)
 #define CAN_GET_SIDL_VALUE_STANDARD(x)       (x << CAN_SID0_POSITION)
 #define CAN_GET_SIDH_VALUE_STANDARD(x)       (x >> CAN_SID3_POSITION)
@@ -461,7 +461,7 @@ uint32_t CAN_uiGetIdentifier(CAN_Buffer * buffer)
 
 void CAN_vSetBufferAsFree(CAN_Buffer * target)
 {
-    MASK_8BIT_SET_BIT(target->BxCON, CAN_RXFUL_POSITION);
+    MASK_8BIT_CLEAR_BIT(target->BxCON, CAN_RXFUL_POSITION);
 }
 
 bool CAN_bBufferHasNewData(CAN_Buffer * target)
@@ -491,7 +491,7 @@ CAN_Buffer * CAN_uiGetResponseBufferByIdentifier(uint32_t targetIdentifier)
     {
         if (index < CAN_NUMBER_OF_RXBF)
         {
-            if (true == CAN_bBufferHasNewData(&CAN_ReceiveBuffers[index]))
+            if (true == CAN_bBufferHasNewData(CAN_ReceiveBuffers[index]))
             {
                 if (targetIdentifier == CAN_uiGetIdentifier(CAN_ReceiveBuffers[index]))
                 {
@@ -505,7 +505,7 @@ CAN_Buffer * CAN_uiGetResponseBufferByIdentifier(uint32_t targetIdentifier)
         }
         else
         {
-            if (true == CAN_bBufferHasNewData(&CAN_ProgrammableBuffers[index]))
+            if (true == CAN_bBufferHasNewData(CAN_ProgrammableBuffers[index]))
             {
                 if (targetIdentifier == CAN_uiGetIdentifier(CAN_ProgrammableBuffers[index]))
                 {

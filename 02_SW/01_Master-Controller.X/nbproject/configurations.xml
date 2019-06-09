@@ -27,6 +27,12 @@
         <logicalFolder name="f1" displayName="I2C" projectFiles="true">
           <itemPath>02_MCAL/I2C/I2C.h</itemPath>
         </logicalFolder>
+        <logicalFolder name="LIN" displayName="LIN" projectFiles="true">
+          <itemPath>02_MCAL/LIN/LIN.h</itemPath>
+        </logicalFolder>
+        <logicalFolder name="RS232" displayName="RS232" projectFiles="true">
+          <itemPath>02_MCAL/RS232/RS232.h</itemPath>
+        </logicalFolder>
         <logicalFolder name="SPI" displayName="SPI" projectFiles="true">
           <itemPath>02_MCAL/SPI/SPI.h</itemPath>
         </logicalFolder>
@@ -35,6 +41,11 @@
         </logicalFolder>
         <logicalFolder name="TIMER2" displayName="TIMER2" projectFiles="true">
           <itemPath>02_MCAL/TIMER2/Timer2.h</itemPath>
+        </logicalFolder>
+        <logicalFolder name="UART" displayName="UART" projectFiles="true">
+          <itemPath>02_MCAL/UART/UART1.h</itemPath>
+          <itemPath>02_MCAL/UART/UartTypes.h</itemPath>
+          <itemPath>02_MCAL/UART/UART2.h</itemPath>
         </logicalFolder>
       </logicalFolder>
       <logicalFolder name="03_Common" displayName="03_Common" projectFiles="true">
@@ -85,6 +96,12 @@
         <logicalFolder name="f1" displayName="I2C" projectFiles="true">
           <itemPath>02_MCAL/I2C/I2C.c</itemPath>
         </logicalFolder>
+        <logicalFolder name="LIN" displayName="LIN" projectFiles="true">
+          <itemPath>02_MCAL/LIN/LIN.c</itemPath>
+        </logicalFolder>
+        <logicalFolder name="RS232" displayName="RS232" projectFiles="true">
+          <itemPath>02_MCAL/RS232/RS232.c</itemPath>
+        </logicalFolder>
         <logicalFolder name="SPI" displayName="SPI" projectFiles="true">
           <itemPath>02_MCAL/SPI/SPI.c</itemPath>
         </logicalFolder>
@@ -93,6 +110,10 @@
         </logicalFolder>
         <logicalFolder name="TIMER2" displayName="TIMER2" projectFiles="true">
           <itemPath>02_MCAL/TIMER2/Timer2.c</itemPath>
+        </logicalFolder>
+        <logicalFolder name="UART" displayName="UART" projectFiles="true">
+          <itemPath>02_MCAL/UART/UART1.c</itemPath>
+          <itemPath>02_MCAL/UART/UART2.c</itemPath>
         </logicalFolder>
       </logicalFolder>
       <logicalFolder name="03_Common" displayName="03_Common" projectFiles="true">
@@ -251,7 +272,6 @@
                   value="Press to browse for a specific firmware version"/>
         <property key="ToolFirmwareOption.UseLatestFirmware" value="true"/>
         <property key="debugoptions.useswbreakpoints" value="false"/>
-        <property key="firmware.download.all" value="false"/>
         <property key="hwtoolclock.frcindebug" value="false"/>
         <property key="memories.aux" value="false"/>
         <property key="memories.bootflash" value="true"/>
@@ -707,7 +727,7 @@
         <property key="ToolFirmwareFilePath"
                   value="Press to browse for a specific firmware version"/>
         <property key="ToolFirmwareOption.UpdateOptions"
-                  value="ToolFirmwareOption.UseLatest"/>
+                  value="ToolFirmwareOption.DontChange"/>
         <property key="communication.interface"
                   value="${communication.interface.default}"/>
         <property key="communication.speed" value="${communication.speed.default}"/>

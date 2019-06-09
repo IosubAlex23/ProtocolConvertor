@@ -19,6 +19,8 @@
 #include "../../02_MCAL/CAN/CAN.h"
 #include "../../02_MCAL/SPI/SPI.h"
 #include "../Interrupt/Interrupt.h"
+#include "../02_MCAL/RS232/RS232.h"
+#include "../02_MCAL/LIN/LIN.h"
 /*----------------------------------------------------------------------------*/
 /*                             Defines and macros                             */
 /*----------------------------------------------------------------------------*/

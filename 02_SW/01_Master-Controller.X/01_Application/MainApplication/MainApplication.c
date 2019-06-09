@@ -11,7 +11,9 @@
 /*----------------------------------------------------------------------------*/
 /*                               Local defines                                */
 /*----------------------------------------------------------------------------*/
+#define DTBS_CAN_FIFO_SIZE                  (32u)
 #define DTBS_I2C_FIFO_SIZE                  (32u)
+#define DTBS_RS232_FIFO_SIZE                (32u)
 #define LKT_I2C_SIZE                        (16u)
 #define LKT_CAN_SIZE                        (16u)
 /* This is is when asking the configurator for data */
@@ -32,7 +34,7 @@
 #define PROTOCOL_CONFIG_NEEDS_RETRANSMISION(x)  ((x & RETRANSMISION_MASK) == RETRANSMISION_VALUE)
 #define END_OF_CONFIGURATION_BYTE(x)            ((x & END_OF_CONFIG_MASK) == END_OF_CONFIG_VALUE)
 #define GET_PROTOCOL_FROM_LKT_LAST_BYTE(x)      (x & 0x03)
-#define DEBUG_ACTIVE                        (0)
+#define DEBUG_ACTIVE                        (1)
 /*----------------------------------------------------------------------------*/
 /*                              Local data types                              */
 
@@ -56,8 +58,9 @@ typedef enum
 /*----------------------------------------------------------------------------*/
 MainApplication_State Application_State;
 
-MainApplication_DataToBeSent DataToBeSent_CAN[] = {0, 0, 0, 0, 0};
+MainApplication_DataToBeSent DataToBeSent_CAN[DTBS_CAN_FIFO_SIZE];
 MainApplication_DataToBeSent DataToBeSent_I2C[DTBS_I2C_FIFO_SIZE];
+MainApplication_DataToBeSent DataToBeSent_RS232[DTBS_RS232_FIFO_SIZE];
 
 /*  TargetProtocol, StateOfTheRequest, *Request_DTBS_ptr, TargetLocation, Receiver;*/
 MainApplication_LookUpTable LookUpTable_I2C[LKT_I2C_SIZE] = {
@@ -70,8 +73,16 @@ MainApplication_LookUpTable LookUpTable_CAN[LKT_CAN_SIZE] = {
     {APP_PROTOCOL_I2C, REQUEST_IDLE, DataToBeSent_I2C, 0x0a, 0x6F},
 };
 
+MainApplication_LookUpTable LookUpTable_RS232;
+
+uint8_t DataToBeSent_CAN_StackPointer;
+uint8_t DataToBeSent_CAN_ReadPointer;
+
 uint8_t DataToBeSent_I2C_StackPointer;
 uint8_t DataToBeSent_I2C_ReadPointer;
+
+uint8_t DataToBeSent_RS232_StackPointer;
+uint8_t DataToBeSent_RS232_ReadPointer;
 
 uint8_t LookUpTable_I2C_Elements;
 uint8_t LookUpTable_CAN_Elements;
@@ -84,7 +95,7 @@ uint8_t App_NumberOfBytesToReceive;
 
 
 uint8_t TestArray[32];
-uint8_t TestArray_Size = 0;
+uint8_t TestArray_Size = 23;
 /*----------------------------------------------------------------------------*/
 /*                             Local data at ROM                              */
 /*----------------------------------------------------------------------------*/
@@ -172,7 +183,10 @@ uint8_t BasicOperations_BinarySearch(MainApplication_LookUpTable * table, uint8_
 /*----------------------------------------------------------------------------*/
 void MainApplication_vInit()
 {
-    INTERRUPT_Initialize();
+    if (!DEBUG_ACTIVE)
+    {
+        INTERRUPT_Initialize();
+    }
     SPI_vInit(SLAVE_MODE);
     App_SPIReceivedData = 0;
     App_NumberOfBytesToReceive = 0;
@@ -186,6 +200,7 @@ void MainApplication_vInit()
 void MainApplication_vLookUpTableInit(void)
 {
     uint8_t index;
+    /* I2C */
     for (index = 0; index < LKT_I2C_SIZE; index++)
     {
         LookUpTable_I2C[index].Receiver = 0xFF;
@@ -199,6 +214,8 @@ void MainApplication_vLookUpTableInit(void)
     DataToBeSent_I2C_StackPointer = 0;
     DataToBeSent_I2C_ReadPointer = 0;
 
+    /* CAN */
+
     for (index = 0; index < LKT_CAN_SIZE; index++)
     {
         LookUpTable_CAN[index].Receiver = 0xFF;
@@ -208,6 +225,17 @@ void MainApplication_vLookUpTableInit(void)
         LookUpTable_CAN[index].TargetProtocol = APP_PROTOCOL_UNKNOWN;
     }
     LookUpTable_CAN_Elements = 0;
+    DataToBeSent_CAN_StackPointer = 0;
+    DataToBeSent_CAN_ReadPointer = 0;
+
+    /* RS-232 */
+    LookUpTable_RS232.Receiver = 0xFF;
+    LookUpTable_RS232.Request_DTBS_ptr = DataToBeSent_RS232;
+    LookUpTable_RS232.StateOfTheRequest = REQUEST_IDLE;
+    LookUpTable_RS232.TargetLocation = 0xFFFF;
+    LookUpTable_RS232.TargetProtocol = APP_PROTOCOL_UNKNOWN;
+    DataToBeSent_RS232_StackPointer = 0;
+    DataToBeSent_RS232_ReadPointer = 0;
 }
 
 void TestArray_Add(uint8_t a)
@@ -233,6 +261,15 @@ void main(void)
     CAN_config.Module_BaudRate = CAN_250KBITS;
     CAN_vInit(&CAN_config);
 
+    RS232_actualConfig.communicationBaudGenSpeed = HIGH_SPEED;
+    RS232_actualConfig.communicationDesiredBaud = BAUD_9600;
+    RS232_actualConfig.communicationUartMode = ASYNC_8BIT;
+    RS232_actualConfig.communicationPolarity = NON_INVERTED;
+    RS232_actualConfig.communicationStopBitMode = ONE_STOP_BIT;
+    RS232_vInit(&RS232_actualConfig);
+
+    LIN_vInit(LIN_SLAVE);
+
     MainApplication_vInit();
     MainAplication_Protocol Configurator_targetProtocol;
     MainApplication_LookUpTable Configurator_tempTable;
@@ -242,16 +279,24 @@ void main(void)
     uint8_t Configurator_CurrentLKT;
     uint8_t Configurator_Response_Value = 1;
     uint8_t a = 1, b = 0;
-    CAN_Buffer * bfrPtr = CAN_uiGetBufferAdrress(&a);
 
     //I2C_vMasterTransmit(0x08, 0x33, 0x33);
-    a = 1;
-    TestArray[0] = 0x33;
+    a = 0;
+    TestArray[0] = 0x06;
     TestArray[1] = 0x64;
     TestArray[2] = 0x70;
     while (DEBUG_ACTIVE)
     {
-        SPI_uiExchangeXBytes(TestArray, 3);
+        //        LIN_vMasterReceive(0x06, 2, TestArray);
+        //        LIN_vTransmit(0x06, 2, TestArray);
+        if (a < 32)
+        {
+            if (true == LIN_bReceive(TestArray[a]))
+            {
+                a++;
+            }
+        }
+        //__delay_ms(100);
     }
     while (!DEBUG_ACTIVE)
     {
@@ -422,12 +467,19 @@ void main(void)
                 break;
                 /* The code under this case will realize the conversion */
             case APP_RUNNING_STATE:
-                //                if (T2CON != 0x80)
-                //     -                   {
-                //                            Timer2_vStart();
-                //                        }
+                if (T2CON != 0x80)
+                {
+                    Timer2_vStart();
+                }
                 MainApplication_vConvert();
                 MainApplication_vAddDataToBuffers();
+                //                if (TestArray_Size != 0)
+                //                {
+                //                    //                    LIN_vTransmit(0x3a, 2, TestArray);
+                //                                        TestArray_Size = 0;
+                //                    //                    __delay_ms(1);
+                //                    RS232_vSendData(0x66);
+                //                }
                 break;
         }
     }
@@ -436,13 +488,13 @@ void main(void)
 void MainApplication_vConvert()
 {
     uint8_t index, bufferIndex;
-    uint8_t receivedData_I2C = 0;
+    uint8_t receivedData = 0;
     uint8_t numberOfReceiveBuffers_CAN = CAN_uiGetNumberOfReceiveBuffers();
     uint32_t matchedAdrr;
     CAN_Buffer * target_CAN_buffer;
     CAN_Frame frameToBeSent;
     MainApplication_LookUpTable * targetTable;
-    I2C_SlaveOperationType slaveResponseStatus = I2C_vSlaveMainFunction(&receivedData_I2C, (uint16_t*) & matchedAdrr);
+    I2C_SlaveOperationType slaveResponseStatus = I2C_vSlaveMainFunction(&receivedData, (uint16_t*) & matchedAdrr);
     /* This is used to convert data received from I2C_Slave Receiver to the corespondent protocol according to the LookUpTable*/
     switch (slaveResponseStatus)
     {
@@ -450,11 +502,11 @@ void MainApplication_vConvert()
             targetTable = MainApplication_uiCheckLookUpTable(APP_PROTOCOL_I2C, &matchedAdrr);
             if ((true == I2C_bStopDetected()))
             {
-                MainApplication_vAddDataToBeSent(targetTable->TargetProtocol, &receivedData_I2C, &targetTable->TargetLocation, true);
+                MainApplication_vAddDataToBeSent(targetTable->TargetProtocol, &receivedData, &targetTable->TargetLocation, true);
             }
             else
             {
-                MainApplication_vAddDataToBeSent(targetTable->TargetProtocol, &receivedData_I2C, &targetTable->TargetLocation, false);
+                MainApplication_vAddDataToBeSent(targetTable->TargetProtocol, &receivedData, &targetTable->TargetLocation, false);
             }
             break;
         case I2C_DATA_REQUESTED:
@@ -513,11 +565,8 @@ void MainApplication_vConvert()
         case I2C_NO_NEW_DATA:
             break;
     }
-    //    if (I2C_NEW_DATA_RECEIVED == slaveResponseStatus)
-    //    {
-    //
-    //    }
-    //    else if (I2C_DATA_REQUESTED == slaveResponseStatus)
+
+    /* This is the CAN part */
     for (bufferIndex = 0; bufferIndex < numberOfReceiveBuffers_CAN; bufferIndex++)
     {
         target_CAN_buffer = CAN_uiGetBufferAdrress(&bufferIndex);
@@ -566,27 +615,50 @@ void MainApplication_vConvert()
             else
             {
                 //if(DataToBeSent_CAN[0].)
-                switch (targetTable->TargetProtocol)
+                //                switch (targetTable->TargetProtocol)
+                //                {
+                //                    case APP_PROTOCOL_I2C:
+                //                        for (index = 0; index < target_CAN_buffer->BxDLC; index++)
+                //                        {
+                //                            if (index == (target_CAN_buffer->BxDLC - 1))
+                //                            {
+                //                                MainApplication_vAddDataToBeSent(targetTable->TargetProtocol, &target_CAN_buffer->BxData[index], &targetTable->TargetLocation, true);
+                //                            }
+                //                            else
+                //                            {
+                //                                MainApplication_vAddDataToBeSent(targetTable->TargetProtocol, &target_CAN_buffer->BxData[index], &targetTable->TargetLocation, false);
+                //                            }
+                //                        }
+                //                        break;
+                //                    case APP_PROTOCOL_RS232:
+                //
+                //                        break;
+                //                }
+                for (index = 0; index < target_CAN_buffer->BxDLC; index++)
                 {
-                    case APP_PROTOCOL_I2C:
-                        for (index = 0; index < target_CAN_buffer->BxDLC; index++)
-                        {
-                            if (index == (target_CAN_buffer->BxDLC - 1))
-                            {
-                                MainApplication_vAddDataToBeSent(targetTable->TargetProtocol, &target_CAN_buffer->BxData[index], &targetTable->TargetLocation, true);
-                            }
-                            else
-                            {
-                                MainApplication_vAddDataToBeSent(targetTable->TargetProtocol, &target_CAN_buffer->BxData[index], &targetTable->TargetLocation, false);
-                            }
-                        }
-                        break;
+                    if (index == (target_CAN_buffer->BxDLC - 1))
+                    {
+                        MainApplication_vAddDataToBeSent(targetTable->TargetProtocol, &target_CAN_buffer->BxData[index], &targetTable->TargetLocation, true);
+                    }
+                    else
+                    {
+                        MainApplication_vAddDataToBeSent(targetTable->TargetProtocol, &target_CAN_buffer->BxData[index], &targetTable->TargetLocation, false);
+                    }
                 }
                 CAN_vSetBufferAsFree(target_CAN_buffer);
             }
         }
         /* This checks if data was requested from CAN */
         /*else */
+    }
+
+    /* This is the RS-232 part */
+    if (RS232_bReceiveDataReady() == 1)
+    {
+        receivedData = RS232_uiReceiveData();
+        targetTable = &LookUpTable_RS232;
+
+        MainApplication_vAddDataToBeSent(targetTable->TargetProtocol, &receivedData, &targetTable->TargetLocation, true);
     }
 }
 
@@ -628,10 +700,15 @@ MainApplication_DataToBeSent * MainApplication_CreateDataToBeSentSlot(MainAplica
     switch (protocol)
     {
         case APP_PROTOCOL_CAN:
-            DataToBeSent_CAN[0].NextIndex = requestedNumberOfBytes;
-            DataToBeSent_CAN[0].TargetLocation = *targetAdress;
-            DataToBeSent_CAN[0].DataState = DATA_PENDING;
-            returnValue = &DataToBeSent_CAN[0];
+            DataToBeSent_CAN[DataToBeSent_CAN_StackPointer].NextIndex = requestedNumberOfBytes;
+            DataToBeSent_CAN[DataToBeSent_CAN_StackPointer].TargetLocation = *targetAdress;
+            DataToBeSent_CAN[DataToBeSent_CAN_StackPointer].DataState = DATA_PENDING;
+            returnValue = &DataToBeSent_CAN[DataToBeSent_CAN_StackPointer];
+            DataToBeSent_CAN_StackPointer++;
+            if (DataToBeSent_CAN_StackPointer >= DTBS_CAN_FIFO_SIZE)
+            {
+                DataToBeSent_CAN_StackPointer = 0;
+            }
             break;
         case APP_PROTOCOL_I2C:
             DataToBeSent_I2C[DataToBeSent_I2C_StackPointer].NextIndex = requestedNumberOfBytes;
@@ -660,22 +737,27 @@ void MainApplication_vAddDataToBeSent(MainAplication_Protocol protocol, uint8_t 
     switch (protocol)
     {
         case APP_PROTOCOL_CAN:
-            nextIndex = DataToBeSent_CAN[0].NextIndex;
-            DataToBeSent_CAN[0].Data[nextIndex] = *dataToBeSend;
-            DataToBeSent_CAN[0].TargetLocation = *targetAdress;
+            nextIndex = DataToBeSent_CAN[DataToBeSent_CAN_StackPointer].NextIndex;
+            DataToBeSent_CAN[DataToBeSent_CAN_StackPointer].Data[nextIndex] = *dataToBeSend;
+            DataToBeSent_CAN[DataToBeSent_CAN_StackPointer].TargetLocation = *targetAdress;
             if (true == lastByte)
             {
-                //                DataToBeSent_CAN[0].ReadyForSending = true;
-                //                DataToBeSent_CAN[0].DataWasSent = false;
+                //                DataToBeSent_CAN[DataToBeSent_CAN_StackPointer].ReadyForSending = true;
+                //                DataToBeSent_CAN[DataToBeSent_CAN_StackPointer].DataWasSent = false;
 
-                DataToBeSent_CAN[0].DataState = DATA_READY;
+                DataToBeSent_CAN[DataToBeSent_CAN_StackPointer].DataState = DATA_READY;
+                DataToBeSent_CAN_StackPointer++;
+                if (DataToBeSent_CAN_StackPointer >= DTBS_I2C_FIFO_SIZE)
+                {
+                    DataToBeSent_CAN_StackPointer = 0;
+                }
             }
             else
             {
-                DataToBeSent_CAN[0].NextIndex++;
-                DataToBeSent_CAN[0].DataState = DATA_PENDING;
-                //                DataToBeSent_CAN[0].ReadyForSending = false;
-                //                DataToBeSent_CAN[0].DataWasSent = false;
+                DataToBeSent_CAN[DataToBeSent_CAN_StackPointer].NextIndex++;
+                DataToBeSent_CAN[DataToBeSent_CAN_StackPointer].DataState = DATA_PENDING;
+                //                DataToBeSent_CAN[DataToBeSent_CAN_StackPointer].ReadyForSending = false;
+                //                DataToBeSent_CAN[DataToBeSent_CAN_StackPointer].DataWasSent = false;
             }
             break;
         case APP_PROTOCOL_I2C:
@@ -705,6 +787,28 @@ void MainApplication_vAddDataToBeSent(MainAplication_Protocol protocol, uint8_t 
         case APP_PROTOCOL_LIN:
             break;
         case APP_PROTOCOL_RS232:
+            nextIndex = DataToBeSent_RS232[DataToBeSent_RS232_StackPointer].NextIndex;
+            DataToBeSent_RS232[DataToBeSent_RS232_StackPointer].Data[nextIndex] = *dataToBeSend;
+            DataToBeSent_RS232[DataToBeSent_RS232_StackPointer].TargetLocation = *targetAdress;
+            if (true == lastByte)
+            {
+                DataToBeSent_RS232[DataToBeSent_RS232_StackPointer].DataState = DATA_READY;
+                //                DataToBeSent_RS232[DataToBeSent_RS232_StackPointer].ReadyForSending = true;
+                //                DataToBeSent_RS232[DataToBeSent_RS232_StackPointer].DataWasSent = false;
+
+                DataToBeSent_RS232_StackPointer++;
+                if (DataToBeSent_RS232_StackPointer >= DTBS_RS232_FIFO_SIZE)
+                {
+                    DataToBeSent_RS232_StackPointer = 0;
+                }
+            }
+            else
+            {
+                DataToBeSent_RS232[DataToBeSent_RS232_StackPointer].NextIndex++;
+                DataToBeSent_RS232[DataToBeSent_RS232_StackPointer].DataState = DATA_PENDING;
+                //                DataToBeSent_RS232[DataToBeSent_RS232_StackPointer].ReadyForSending = false;
+                //                DataToBeSent_RS232[DataToBeSent_RS232_StackPointer].DataWasSent = false;
+            }
             break;
         case APP_PROTOCOL_UNKNOWN:
             break;
@@ -716,11 +820,16 @@ void MainApplication_vAddDataToBuffers()
 {
     uint8_t index;
     /* This is for sending via CAN */
-    if (DataToBeSent_CAN[0].DataState == DATA_READY)
+    if (DataToBeSent_CAN[DataToBeSent_CAN_ReadPointer].DataState == DATA_READY)
     {
         MainApplication_vAddDataToBuffers_CAN();
         //        DataToBeSent_CAN[0].DataWasSent = true;
-        DataToBeSent_CAN[0].DataState = DATA_WAS_SENT;
+        DataToBeSent_CAN[DataToBeSent_CAN_ReadPointer].DataState = DATA_WAS_SENT;
+        DataToBeSent_CAN_ReadPointer++;
+        if (DataToBeSent_CAN_ReadPointer >= DTBS_CAN_FIFO_SIZE)
+        {
+            DataToBeSent_CAN_ReadPointer = 0;
+        }
     }
     /* This is for sending via I2C */
     //    for (index = 0; index < DataToBeSent_I2C_StackPointer; index++)
@@ -744,6 +853,23 @@ void MainApplication_vAddDataToBuffers()
         }
     }
 
+    /* This is for sending data on RS232 */
+    if (DataToBeSent_RS232[DataToBeSent_RS232_ReadPointer].DataState == DATA_READY)
+    {
+
+        for (index = 0; index <= DataToBeSent_RS232[DataToBeSent_RS232_ReadPointer].NextIndex; index++)
+        {
+            RS232_vSendData(DataToBeSent_RS232[DataToBeSent_RS232_ReadPointer].Data[index]);
+        }
+        DataToBeSent_RS232[DataToBeSent_RS232_ReadPointer].DataState = DATA_WAS_SENT;
+        DataToBeSent_RS232[DataToBeSent_RS232_ReadPointer].NextIndex = 0;
+        DataToBeSent_RS232_ReadPointer++;
+        if (DataToBeSent_RS232_ReadPointer == DTBS_RS232_FIFO_SIZE)
+        {
+            DataToBeSent_RS232_ReadPointer = 0;
+        }
+
+    }
     //    }
 }
 
@@ -751,21 +877,10 @@ void MainApplication_vAddDataToBuffers_CAN()
 {
 
     CAN_Frame frame;
-    CAN_vFrameSetData(&frame, DataToBeSent_CAN[0].Data, (DataToBeSent_CAN[0].NextIndex + 1));
-    DataToBeSent_CAN[0].NextIndex = 0;
-    DataToBeSent_CAN[0].DataState =
-            frame.Frame_Identifier = DataToBeSent_CAN[0].TargetLocation;
-    frame.Frame_RTR = false;
-    CAN_vTransmitFrame(frame);
-}
-
-void MainApplication_vAddDataToBuffers_I2C()
-{
-
-    CAN_Frame frame;
-    CAN_vFrameSetData(&frame, DataToBeSent_CAN[0].Data, (DataToBeSent_CAN[0].NextIndex + 1));
-    DataToBeSent_CAN[0].NextIndex = 0;
-    frame.Frame_Identifier = DataToBeSent_CAN[0].TargetLocation;
+    CAN_vFrameSetData(&frame, DataToBeSent_CAN[DataToBeSent_CAN_ReadPointer].Data, (DataToBeSent_CAN[DataToBeSent_CAN_ReadPointer].NextIndex + 1));
+    DataToBeSent_CAN[DataToBeSent_CAN_ReadPointer].NextIndex = 0;
+    DataToBeSent_CAN[DataToBeSent_CAN_ReadPointer].DataState =
+            frame.Frame_Identifier = DataToBeSent_CAN[DataToBeSent_CAN_ReadPointer].TargetLocation;
     frame.Frame_RTR = false;
     CAN_vTransmitFrame(frame);
 }
