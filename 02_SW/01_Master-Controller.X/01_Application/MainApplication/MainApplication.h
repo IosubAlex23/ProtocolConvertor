@@ -20,11 +20,33 @@
 #include "../../02_MCAL/SPI/SPI.h"
 #include "../Interrupt/Interrupt.h"
 #include "../02_MCAL/RS232/RS232.h"
-#include "../02_MCAL/LIN/LIN.h"
 /*----------------------------------------------------------------------------*/
 /*                             Defines and macros                             */
 /*----------------------------------------------------------------------------*/
 #define MAX_BYTES_ON_TRANSACTION    (8u)
+#define DTBS_CAN_FIFO_SIZE                  (32u)
+#define DTBS_I2C_FIFO_SIZE                  (32u)
+#define DTBS_RS232_FIFO_SIZE                (32u)
+#define LKT_I2C_SIZE                        (16u)
+#define LKT_CAN_SIZE                        (16u)
+/* This is is when asking the configurator for data */
+#define SPI_REQUEST_DATA_VALUE              (0x21)
+#define APP_START_BYTE_MASK                 (0xF8)
+#define APP_START_BYTE                      (0xF8)
+#define NUMBER_OF_PROTOCOLS                 (4u)
+#define CONFIGURATOR_GET_PROTOCOL_ID(x)     ((x >> 1) & (0x03))
+#define CONFIGURATOR_GET_PROTOCOL_STATE(x)  (MASK_8BIT_GET_BIT(x,0))
+#define BYTES_PER_LKT                       (5u)
+#define MASTER_SLAVE_MODE_POSITION          (7u)
+#define RETRANSMISION_MASK                  (0xFE)
+#define RETRANSMISION_VALUE                 (0xA8)
+#define END_OF_CONFIG_MASK                  (0xF8)
+#define END_OF_CONFIG_VALUE                 (0x58)
+#define START_CONVERSION_FLAG_MASK          (0xFE)
+#define START_CONVERSION_FLAG_VALUE         (0x64)
+#define PROTOCOL_CONFIG_NEEDS_RETRANSMISION(x)  ((x & RETRANSMISION_MASK) == RETRANSMISION_VALUE)
+#define END_OF_CONFIGURATION_BYTE(x)            ((x & END_OF_CONFIG_MASK) == END_OF_CONFIG_VALUE)
+#define GET_PROTOCOL_FROM_LKT_LAST_BYTE(x)      (x & 0x03)
 /*----------------------------------------------------------------------------*/
 /*                                 Data types                                 */
 

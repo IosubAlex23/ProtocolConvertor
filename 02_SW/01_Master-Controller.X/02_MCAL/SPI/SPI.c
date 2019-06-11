@@ -18,7 +18,8 @@
 #define SPI_SCK                     (0xB3)
 #define SPI_MOSI                    (0xC1)
 #define SPI_MISO                    (0xC0)
-#define SPI_SLAVE_EN                (0xA5)
+#define SPI_SLAVE_WHEN_MASTER                (0xA0)
+#define SPI_SLAVE_WHEN_SLAVE                (0xA1)
 #define SPI_FIFO_LENGTH             (64)
 
 /*----------------------------------------------------------------------------*/
@@ -100,7 +101,7 @@ void SPI_vInit(uint8_t OperationMode)
         RB3PPS = 0x1E; //SPI_SCK_SLAVE_INPUT:RB3
         RC1PPS = 0x1F; //SPI_MOSI_INPUT:RC1
         SPI1SDIPPS = 0x10; //SPI_MISO_OUTPUT:RC0
-        RA5PPS = 0x20; //SPI_SS_INPUT:RA5
+        RA1PPS = 0x20; //SPI_SS_OUTPUT:RA5
         SPI1BAUD = 0x77; //200kHz @ 48MHz FOSC
         SPI1CON1 = 0x44;
         SPI1CON2 = 0X03;
@@ -108,7 +109,7 @@ void SPI_vInit(uint8_t OperationMode)
         GPIO_vSetPinDirection(SPI_SCK, GPIO_OUTPUT_PIN);
         GPIO_vSetPinDirection(SPI_MOSI, GPIO_OUTPUT_PIN);
         GPIO_vSetPinDirection(SPI_MISO, GPIO_INPUT_PIN);
-        GPIO_vSetPinDirection(SPI_SLAVE_EN, GPIO_OUTPUT_PIN);
+        GPIO_vSetPinDirection(SPI_SLAVE_WHEN_MASTER, GPIO_OUTPUT_PIN);
         PIE2bits.SPI1IE = 0; // disable spi interrupt
         PIE2bits.SPI1RXIE = 0; // disable SPI interrupt
     }
@@ -117,7 +118,7 @@ void SPI_vInit(uint8_t OperationMode)
         SPI1SCKPPS = 0x0B; //SPI_SCK_SLAVE_INPUT
         SPI1SDIPPS = 0x11; //SPI_MOSI_INPUT
         RC0PPS = 0x1F; //SPI_MISO_OUTPUT
-        SPI1SSPPS = 0x05; //SPI_SS_INPUT
+        SPI1SSPPS = 0x01; //SPI_SS_INPUT
         SPI1BAUD = RESET_VALUE;
         SPI1CON1 = 0x40;
         SPI1CON2 = 0x07;
@@ -125,7 +126,13 @@ void SPI_vInit(uint8_t OperationMode)
         GPIO_vSetPinDirection(SPI_SCK, GPIO_INPUT_PIN);
         GPIO_vSetPinDirection(SPI_MOSI, GPIO_INPUT_PIN);
         GPIO_vSetPinDirection(SPI_MISO, GPIO_OUTPUT_PIN);
-        GPIO_vSetPinDirection(SPI_SLAVE_EN, GPIO_INPUT_PIN);
+        GPIO_vSetPinDirection(SPI_SLAVE_WHEN_SLAVE, GPIO_INPUT_PIN);
+
+        PMD6 = 0x7F;
+
+        GPIO_vSetPinDirection(SPI_SLAVE_WHEN_MASTER, GPIO_OUTPUT_PIN);
+        GPIO_vSetPinLevel(SPI_SLAVE_WHEN_MASTER, STD_HIGH); //        GPIO_vSetPinDirection(0xA0, GPIO_OUTPUT_PIN);
+
         PIE2bits.SPI1IE = 1; // enable spi interrupt
         PIE2bits.SPI1RXIE = 1; // enable SPI interrupt
     }
@@ -172,11 +179,11 @@ void SPI_vSlaveState(uint8_t state)
 {
     if (state == SS_ENABLED)
     {
-        GPIO_vSetPinLevel(SPI_SLAVE_EN, STD_HIGH);
+        GPIO_vSetPinLevel(SPI_SLAVE_WHEN_MASTER, STD_HIGH);
     }
     else if (state == SS_DISABLED)
     {
-        GPIO_vSetPinLevel(SPI_SLAVE_EN, STD_LOW);
+        GPIO_vSetPinLevel(SPI_SLAVE_WHEN_MASTER, STD_LOW);
     }
     else
     {

@@ -46,6 +46,7 @@
 #define I2C2_RELEASE_CLOCK()                (MASK_8BIT_CLEAR_BIT(I2C2CON0, I2C_CSTR_POSTION))
 #define I2C2_PORT_MASK                      (0x0C)
 #define I2C_MASTER_MODE_BITS_VALUE          (0x03)
+#define I2C_RECEIVE_FIFO_SIZE               (32u)
 /*----------------------------------------------------------------------------*/
 /*                              Local data types                              */
 
@@ -62,8 +63,14 @@ typedef struct
     uint8_t NumberOfBytesToBeSent;
     uint8_t StackIndex;
     uint8_t DataPendingValue;
-    bool FirstRequestedByteSent;
+    bool DataAvailableOnStart;
 } I2C_SlaveResponse;
+
+typedef struct
+{
+    uint8_t data;
+    bool isAStopByte;
+} I2C_ReceiveFIFO;
 /*----------------------------------------------------------------------------*/
 /*                             Global data at RAM                             */
 /*----------------------------------------------------------------------------*/
@@ -79,7 +86,12 @@ static const uint8_t I2C_DefaultResponsePendingValue = 0x55;
 /*----------------------------------------------------------------------------*/
 /*                             Local data at ROM                              */
 /*----------------------------------------------------------------------------*/
-static I2C_SlaveResponse I2C_SlaveResponseData;
+static volatile I2C_SlaveResponse I2C_SlaveResponseData;
+static volatile I2C_ReceiveFIFO I2C_ReceiveFIFOBytes[I2C_RECEIVE_FIFO_SIZE];
+static volatile bool I2C_SlaveDataRequestedFlag;
+
+static volatile uint8_t I2C_ReceiveFIFO_StackPointer;
+static volatile uint8_t I2C_ReceiveFIFO_ReadPointer;
 static uint8_t I2C_StopDetected = false;
 /*----------------------------------------------------------------------------*/
 /*                       Declaration of local functions                       */
@@ -93,6 +105,9 @@ void I2C2_vWaitACK(void);
 void inline I2C2_vModuleDisable(void);
 void inline I2C2_vModuleEnable(void);
 uint16_t I2C2_uiGetMatchedAdress(void);
+void I2C_ReceiveFIFO_Push(uint8_t data);
+bool I2C_ReceiveFIFO_IsAStop(void);
+uint8_t I2C_ReceiveFIFO_Pop(void);
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of global functions                     */
 
@@ -182,150 +197,53 @@ void I2C_vJoinAsSlave(uint8_t adresssAsSlave)
     I2C2_SET_SLAVE_MODE();
     /* I2C2ADR0<7:1> address bits */
     I2C2ADR0 = (adresssAsSlave << 1u);
-    //    I2C1ADR1 = (adresssAsSlave << 1u); /* ADRx<7:1>:7-bit Slave Address => Address 9*/
-    //    I2C1ADR2 = (adresssAsSlave << 1u); /* ADRx<7:1>:7-bit Slave Address => Address 9*/
-    //    I2C1ADR3 = (adresssAsSlave << 1u); /* ADRx<7:1>:7-bit Slave Address => Address 9*/
-    /* Clearing ADRIE */
-    MASK_8BIT_CLEAR_BIT(I2C2PIE, I2C_ADRIE_POSITION);
-    /* Clearing ACKTIE */
-    MASK_8BIT_CLEAR_BIT(I2C2PIE, I2C_ACKTIE_POSITION);
-    /* Setting ACKCNT */
-    MASK_8BIT_SET_BIT(I2C2CON1, I2C_ACKCNT_POSITION);
-    /* Clearing ACKDT */
+
+    /* Setting ACKTIE, ADRIE and PCIE */
+    I2C2PIE = 0x4C;
+
     I2C2_SET_ACKDT();
     I2C2PIRbits.PCIF = 0;
+
+    /* Clearing all the bits related to I2C interrupts */
+    PIE7 &= 0xF0;
+    /* Setting bit related to I2C interrupt (general)*/
+    PIE7 |= 0x04;
+
+    I2C2_SET_CNT_VALUE(0xff);
 
     I2C_SlaveResponseData.DataPendingValue = I2C_DefaultResponsePendingValue;
     I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
     I2C_SlaveResponseData.StackIndex = 0;
-    I2C_SlaveResponseData.FirstRequestedByteSent = false;
+    I2C_SlaveResponseData.DataAvailableOnStart = false;
     for (index = 0; index < 8; index++)
     {
         I2C_SlaveResponseData.DataForResponse[index] = I2C_DefaultResponsePendingValue + 1 + index;
     }
+
+    I2C_ReceiveFIFO_StackPointer = 0;
+    I2C_ReceiveFIFO_ReadPointer = 0;
     I2C2_vModuleEnable();
 }
 
-I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t * matchedAdress)
+I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t * matchedAdress, bool * isAStop)
 {
     I2C_SlaveOperationType returnValue = I2C_NO_NEW_DATA;
-    bool StackIncremented = false;
-
-    if (I2C2STAT0bits.SMA == 1)
+    if (I2C_ReceiveFIFO_ReadPointer < I2C_ReceiveFIFO_StackPointer)
     {
-        //        if (PIR7bits.I2C2IF == 1)
-        //        {
-        if (I2C2STAT0bits.R == 1)
-        {
-            if (I2C2PIRbits.SCIF == 1)
-            {
-                I2C_SlaveResponseData.StackIndex = 0;
-                I2C2STAT1bits.CLRBF = 1;
-            }
-            if (I2C2STAT1bits.TXBE == 1)
-            {
-
-                if ((I2C_SlaveResponseData.NumberOfBytesToBeSent > 0) && (StackIncremented == false) && (I2C_SlaveResponseData.FirstRequestedByteSent == true) && (I2C_SlaveResponseData.StackIndex > 0))
-                {
-                    I2C2_WRITE_TXB(I2C_SlaveResponseData.DataForResponse[I2C_SlaveResponseData.StackIndex]);
-                    I2C_SlaveResponseData.StackIndex++;
-                    if (I2C_SlaveResponseData.StackIndex >= I2C_SlaveResponseData.NumberOfBytesToBeSent)
-                    {
-                        I2C_SlaveResponseData.StackIndex = 0;
-                        I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
-                        I2C_SlaveResponseData.FirstRequestedByteSent = false;
-                    }
-                    StackIncremented = true;
-                    returnValue = I2C_REQUEST_SERVED;
-                }
-                else
-                {
-                    I2C2_WRITE_TXB(I2C_SlaveResponseData.DataPendingValue);
-                    returnValue = I2C_DATA_REQUESTED;
-                }
-            }
-            else
-            {
-                returnValue = I2C_NO_NEW_DATA;
-            }
-            if (I2C2PIRbits.ADRIF == 1)
-            {
-                I2C2STAT1bits.CLRBF = 1;
-                I2C2PIRbits.ADRIF = 0;
-                if (I2C2STAT1bits.TXBE == 1)
-                {
-
-                    if ((I2C_SlaveResponseData.NumberOfBytesToBeSent > 0) && (StackIncremented == false) && (I2C_SlaveResponseData.FirstRequestedByteSent == false) && (I2C_SlaveResponseData.StackIndex == 0))
-                    {
-                        I2C_SlaveResponseData.FirstRequestedByteSent = true;
-                        I2C2_WRITE_TXB(I2C_SlaveResponseData.DataForResponse[I2C_SlaveResponseData.StackIndex]);
-                        I2C_SlaveResponseData.StackIndex++;
-                        if (I2C_SlaveResponseData.StackIndex >= I2C_SlaveResponseData.NumberOfBytesToBeSent)
-                        {
-                            I2C_SlaveResponseData.StackIndex = 0;
-                            I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
-                            I2C_SlaveResponseData.FirstRequestedByteSent = false;
-                        }
-                        StackIncremented = true;
-                        returnValue = I2C_REQUEST_SERVED;
-                    }
-
-                    else
-                    {
-                        I2C2_WRITE_TXB(I2C_SlaveResponseData.DataPendingValue);
-                        returnValue = I2C_DATA_REQUESTED;
-                    }
-                }
-                else
-                {
-                    returnValue = I2C_NO_NEW_DATA;
-                }
-                I2C2_RELEASE_CLOCK();
-            }
-        }
-        else
-        {
-            I2C_StopDetected = false;
-            if (I2C2PIRbits.SCIF == 1)
-            {
-                I2C_SlaveResponseData.StackIndex = 0;
-
-            }
-            if ((I2C2PIRbits.WRIF == 1) && (I2C2STAT1bits.RXBF == 1))
-            {
-                *receivedData = I2C2_READ_RXB();
-                returnValue = I2C_NEW_DATA_RECEIVED;
-            }
-            else
-            {
-                returnValue = I2C_NO_NEW_DATA;
-            }
-        }
-
-        if (I2C2PIRbits.PCIF == 1)
-        {
-            I2C2PIRbits.PCIF = 0;
-            I2C_StopDetected = true;
-            //            I2C2STAT1bits.CLRBF = 1;
-        }
-        else if (I2C2PIRbits.ADRIF == 1)
-        {
-            I2C2PIRbits.ADRIF = 0;
-        }
-
-        I2C2_RELEASE_CLOCK();
-        //        }
+        returnValue = I2C_NEW_DATA_RECEIVED;
+        /* if read == stack => true*/
+//        if (I2C_ReceiveFIFO_ReadPointer == (I2C_ReceiveFIFO_StackPointer - 1))
+//        {
+//            I2C_ReceiveFIFOBytes[I2C_ReceiveFIFO_ReadPointer].isAStopByte = true;
+//        }
+        *isAStop = I2C_ReceiveFIFO_IsAStop();
+        *receivedData = I2C_ReceiveFIFO_Pop();
+        *matchedAdress = I2C2_uiGetMatchedAdress();
     }
-    if (I2C2PIRbits.SCIF == 1)
+    else if (I2C_SlaveDataRequestedFlag == true)
     {
-        I2C2_SET_CNT_VALUE(0xff);
-        I2C2CON1bits.ACKCNT = 0;
-        I2C2PIRbits.SCIF = 0;
+        returnValue = I2C_DATA_REQUESTED;
     }
-
-
-    *matchedAdress = I2C2_uiGetMatchedAdress();
-
     return returnValue;
 }
 
@@ -379,6 +297,158 @@ void I2C_vSetCLK(uint8_t clkID)
 /*                     Implementation of local functions                      */
 
 /*----------------------------------------------------------------------------*/
+void __interrupt(irq(58)) I2C_ISR(void)
+{
+    uint8_t matchedAdrr;
+    uint8_t receivedData;
+    if (I2C2STAT0bits.SMA == 1)
+    {
+        matchedAdrr = I2C2_uiGetMatchedAdress();
+    }
+    if (I2C2PIRbits.SCIF == 1)
+    {
+        I2C2PIRbits.SCIF = 0;
+
+        I2C2STAT1bits.CLRBF = 1;
+        I2C_SlaveResponseData.StackIndex = 0;
+        if (I2C_SlaveResponseData.NumberOfBytesToBeSent > 0)
+        {
+            I2C_SlaveResponseData.DataAvailableOnStart = true;
+        }
+    }
+    if (I2C2PIRbits.PCIF == 1)
+    {
+        I2C2PIRbits.PCIF = 0;
+        I2C2STAT1bits.CLRBF = 1;
+        I2C_SlaveResponseData.StackIndex = 0;
+        I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
+        I2C_SlaveResponseData.DataAvailableOnStart = false;
+        I2C_SlaveDataRequestedFlag = false;
+        I2C_ReceiveFIFOBytes[I2C_ReceiveFIFO_StackPointer - 1].isAStopByte = true;
+        //        if (I2C2STAT0bits.R == 0)
+        //        {
+        //            targetTable = MainApplication_uiCheckLookUpTable(APP_PROTOCOL_I2C, &matchedAdrr);
+        //            MainApplication_vSetLastByte(targetTable->TargetProtocol);
+        //        }
+    }
+
+    if ((I2C2PIRbits.ADRIF == 1) || (I2C2PIRbits.ACKTIF == 1) || (I2C2PIRbits.ACKTIF == 1))
+    {
+        if (I2C2STAT0bits.R == 1)
+        {
+            I2C2_SET_CNT_VALUE(0xff);
+            if (I2C2STAT1bits.TXBE == 1)
+            {
+                if (I2C2PIRbits.ADRIF == 1)
+                {
+                    //                    I2C2STAT1bits.CLRBF = 1;
+                    I2C2PIRbits.ADRIF = 0;
+
+                    I2C2_SET_ACKDT();
+                }
+                if (I2C2PIRbits.ACKTIF == 1)
+                {
+                    I2C2PIRbits.ACKTIF = 0;
+
+                }
+                /* if requested data was available on start bit then respond with this data, else respond with data pending */
+                if (I2C_SlaveResponseData.DataAvailableOnStart == true)
+                {
+                    I2C2_WRITE_TXB(I2C_SlaveResponseData.DataForResponse[I2C_SlaveResponseData.StackIndex]);
+                    I2C_SlaveResponseData.StackIndex++;
+                    if (I2C_SlaveResponseData.StackIndex >= I2C_SlaveResponseData.NumberOfBytesToBeSent)
+                    {
+                        I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
+                    }
+
+                }
+                else
+                {
+                    I2C2_WRITE_TXB(I2C_SlaveResponseData.DataPendingValue);
+                    /* Here should implement the request*/
+                    I2C_SlaveDataRequestedFlag = true;
+                }
+
+                if (I2C2ERRbits.NACKIF == 1)
+                {
+                    I2C2ERRbits.NACKIF = 0;
+                }
+            }
+            //            }
+            if (I2C2CON0bits.CSTR == 1)
+            {
+                I2C2CON0bits.CSTR = 0;
+            }
+        }
+        else
+        {
+            I2C2_SET_CNT_VALUE(0xff);
+            /* If buffer is full */
+            if (I2C2STAT1bits.RXBF == 1)
+            {
+
+                if (I2C2PIRbits.ACKTIF == 1)
+                {
+                    I2C2PIRbits.ACKTIF = 0;
+                }
+                I2C_ReceiveFIFO_Push(I2C2_READ_RXB());
+                /* Tre sa fac read */
+                if (I2C_SlaveResponseData.StackIndex >= I2C_SlaveResponseData.NumberOfBytesToBeSent)
+                {
+                    I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
+                }
+
+                if (I2C2ERRbits.NACKIF == 1)
+                {
+                    I2C2ERRbits.NACKIF = 0;
+
+                    I2C2_SET_ACKDT();
+                }
+            }
+            else
+            {
+                if (I2C2PIRbits.ADRIF == 1)
+                {
+                    //                    I2C2STAT1bits.CLRBF = 1;
+                    I2C2PIRbits.ADRIF = 0;
+                    /* Received something */
+                    I2C2_SET_ACKDT();
+                }
+            }
+            if (I2C2CON0bits.CSTR == 1)
+            {
+                I2C2CON0bits.CSTR = 0;
+            }
+            if (I2C2PIRbits.WRIF == 1)
+            {
+                I2C2PIRbits.WRIF = 0;
+            }
+        }
+
+    }
+}
+
+void I2C_ReceiveFIFO_Push(uint8_t data)
+{
+    I2C_ReceiveFIFOBytes[I2C_ReceiveFIFO_StackPointer].data = data;
+    I2C_ReceiveFIFOBytes[I2C_ReceiveFIFO_StackPointer].isAStopByte = false;
+    I2C_ReceiveFIFO_StackPointer++;
+}
+
+bool I2C_ReceiveFIFO_IsAStop(void)
+{
+    bool returnValue = I2C_ReceiveFIFOBytes[I2C_ReceiveFIFO_ReadPointer].isAStopByte;
+    return returnValue;
+}
+
+uint8_t I2C_ReceiveFIFO_Pop(void)
+{
+    uint8_t returnValue = I2C_ReceiveFIFOBytes[I2C_ReceiveFIFO_ReadPointer].data;
+    I2C_ReceiveFIFOBytes[I2C_ReceiveFIFO_ReadPointer].isAStopByte = false;
+    I2C_ReceiveFIFO_ReadPointer++;
+    return returnValue;
+}
+
 void I2C2_vWaitACK(void)
 {
     //while()

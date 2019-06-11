@@ -227,6 +227,11 @@ void CAN_vInit(CAN_Configuration * config)
         Initialize Receive Masks
         If any mask bit is set to a zero, then that bit will automatically be accepted regardless of the filter bit
      */
+    MSEL0 = 0xFF;
+    MSEL1 = 0xFF;
+    MSEL2 = 0xFF;
+    MSEL3 = 0xFF;
+
     RXM0EIDH = 0x00;
     RXM0EIDL = 0x00;
     RXM0SIDH = 0x00;
@@ -239,8 +244,9 @@ void CAN_vInit(CAN_Configuration * config)
     /* End of Poplaca */
 
     /* Configuring buffers based on Module_ReceiveFIFO_Size */
-    CAN_vSetRxProgrammableBuffers(config->Module_ReceiveFIFO_Size);
+
     CAN_vSetFunctionalMode(config->Module_FunctionalMode);
+    CAN_vSetRxProgrammableBuffers(config->Module_ReceiveFIFO_Size);
     CAN_vSetBaudRate(&(config->Module_BaudRate));
     /* Filters & Masks*/
     CAN_vRequestOperationMode(config->Module_OperationMode);
@@ -542,7 +548,7 @@ void CAN_vSetRxProgrammableBuffers(uint8_t number_of_rx_buffers)
     {
         CAN_NumberOfReceiveBuffers = number_of_rx_buffers;
     }
-    BSEL_value = (!(((1 << CAN_NumberOfReceiveBuffers) - 1) << 2u));
+    BSEL_value = (~(((1 << CAN_NumberOfReceiveBuffers) - 1) << 2u));
 
     BSEL0 = BSEL_value;
 }

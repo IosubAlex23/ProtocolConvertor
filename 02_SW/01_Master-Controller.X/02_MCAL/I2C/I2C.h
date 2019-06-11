@@ -13,6 +13,7 @@
 /*----------------------------------------------------------------------------*/
 #include "../../03_Common/types.h"
 #include "../TIMER2/Timer2.h"
+
 /*----------------------------------------------------------------------------*/
 /*                             Defines and macros                             */
 /*----------------------------------------------------------------------------*/
@@ -87,7 +88,7 @@ void I2C_vSlaveSetResponse(uint8_t * DataSource_ptr, uint8_t NumberOfBytes);
  * \return    bool: true if new data was received - meaning that in *receivedData is a new value; 
  *                  false if no new data was put at receivedData; 
  */
-I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t * matchedAdress);
+I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t * matchedAdress, bool * isAStop);
 /**
  * \brief     This function is used to read received data by the slave from the RX buffer;
  * \param     None

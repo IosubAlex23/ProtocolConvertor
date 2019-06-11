@@ -79,7 +79,7 @@ void LIN_vInit(uint8_t mode)
 
 void LIN_vCheckSUMMode(CheckSUM_Mode CkSUM)
 {
-    if (CkSUM < LEGACY || CkSUM > ENHANCED)
+    if ((CkSUM < LEGACY) || (CkSUM > ENHANCED))
     {
         MASK_8BIT_CLEAR_BIT(U2CON2, CHECKSUM_BIT); // sets CHECKSUM Mode as LEGACY (if CkSUM parameter is not in interval)[DEFAULT]
     }
