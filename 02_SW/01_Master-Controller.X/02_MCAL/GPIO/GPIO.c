@@ -152,36 +152,36 @@ void GPIO_vSetPinLevel(GPIO_tPortPin targetPin, STD_LogicLevel pinLevel)
             if (STD_HIGH == pinLevel)
             {
                 /* Setting a bit in PORTx will drive the pin high */
-                MASK_8BIT_SET_BIT(PORTA, pin);
+                MASK_8BIT_SET_BIT(LATA, pin);
             }
             else
             {
                 /* Clearing a bit in PORTx will drive the pin low */
-                MASK_8BIT_CLEAR_BIT(PORTA, pin);
+                MASK_8BIT_CLEAR_BIT(LATA, pin);
             }
             break;
         case 0xB:
             if (STD_HIGH == pinLevel)
             {
                 /* Setting a bit in PORTx will drive the pin high */
-                MASK_8BIT_SET_BIT(PORTB, pin);
+                MASK_8BIT_SET_BIT(LATB, pin);
             }
             else
             {
                 /* Clearing a bit in PORTx will drive the pin low */
-                MASK_8BIT_CLEAR_BIT(PORTB, pin);
+                MASK_8BIT_CLEAR_BIT(LATB, pin);
             }
             break;
         case 0xC:
             if (STD_HIGH == pinLevel)
             {
                 /* Setting a bit in PORTx will drive the pin high */
-                MASK_8BIT_SET_BIT(PORTC, pin);
+                MASK_8BIT_SET_BIT(LATC, pin);
             }
             else
             {
                 /* Clearing a bit in PORTx will drive the pin low */
-                MASK_8BIT_CLEAR_BIT(PORTC, pin);
+                MASK_8BIT_CLEAR_BIT(LATC, pin);
             }
             break;
     }

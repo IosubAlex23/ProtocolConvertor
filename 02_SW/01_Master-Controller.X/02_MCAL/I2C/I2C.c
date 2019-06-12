@@ -232,10 +232,10 @@ I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t *
     {
         returnValue = I2C_NEW_DATA_RECEIVED;
         /* if read == stack => true*/
-//        if (I2C_ReceiveFIFO_ReadPointer == (I2C_ReceiveFIFO_StackPointer - 1))
-//        {
-//            I2C_ReceiveFIFOBytes[I2C_ReceiveFIFO_ReadPointer].isAStopByte = true;
-//        }
+        //        if (I2C_ReceiveFIFO_ReadPointer == (I2C_ReceiveFIFO_StackPointer - 1))
+        //        {
+        //            I2C_ReceiveFIFOBytes[I2C_ReceiveFIFO_ReadPointer].isAStopByte = true;
+        //        }
         *isAStop = I2C_ReceiveFIFO_IsAStop();
         *receivedData = I2C_ReceiveFIFO_Pop();
         *matchedAdress = I2C2_uiGetMatchedAdress();
@@ -433,6 +433,10 @@ void I2C_ReceiveFIFO_Push(uint8_t data)
     I2C_ReceiveFIFOBytes[I2C_ReceiveFIFO_StackPointer].data = data;
     I2C_ReceiveFIFOBytes[I2C_ReceiveFIFO_StackPointer].isAStopByte = false;
     I2C_ReceiveFIFO_StackPointer++;
+    if (I2C_ReceiveFIFO_StackPointer > I2C_RECEIVE_FIFO_SIZE)
+    {
+        I2C_ReceiveFIFO_StackPointer = 0;
+    }
 }
 
 bool I2C_ReceiveFIFO_IsAStop(void)
@@ -445,7 +449,14 @@ uint8_t I2C_ReceiveFIFO_Pop(void)
 {
     uint8_t returnValue = I2C_ReceiveFIFOBytes[I2C_ReceiveFIFO_ReadPointer].data;
     I2C_ReceiveFIFOBytes[I2C_ReceiveFIFO_ReadPointer].isAStopByte = false;
-    I2C_ReceiveFIFO_ReadPointer++;
+    if (I2C_ReceiveFIFO_ReadPointer < I2C_ReceiveFIFO_StackPointer)
+    {
+        I2C_ReceiveFIFO_ReadPointer++;
+    }
+    if (I2C_ReceiveFIFO_ReadPointer > I2C_RECEIVE_FIFO_SIZE)
+    {
+        I2C_ReceiveFIFO_ReadPointer = 0;
+    }
     return returnValue;
 }
 
