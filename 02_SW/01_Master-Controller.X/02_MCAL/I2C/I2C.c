@@ -242,6 +242,7 @@ I2C_SlaveOperationType I2C_vSlaveMainFunction(uint8_t * receivedData, uint16_t *
     }
     else if (I2C_SlaveDataRequestedFlag == true)
     {
+        *matchedAdress = I2C2_uiGetMatchedAdress();
         returnValue = I2C_DATA_REQUESTED;
     }
     return returnValue;
@@ -380,6 +381,7 @@ void __interrupt(irq(58)) I2C_ISR(void)
                 I2C2CON0bits.CSTR = 0;
             }
         }
+            /* WRITE */
         else
         {
             I2C2_SET_CNT_VALUE(0xff);

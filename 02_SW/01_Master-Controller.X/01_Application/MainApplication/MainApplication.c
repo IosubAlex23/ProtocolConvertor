@@ -261,7 +261,7 @@ void main(void)
 
     TimeoutModule_vInit();
     I2C_vInit();
-    I2C_vJoinAsSlave(0x08);
+//    I2C_vJoinAsSlave(0x08);
     CAN_Configuration CAN_config;
     CAN_config.Module_FrameType = CAN_STANDARD_FRAME;
     CAN_config.Module_FunctionalMode = CAN_ENHANCED_FUNCTIONAL_MODE;
