@@ -92,5 +92,8 @@ void LIN_stateCheck(void);
 
 void LIN_vTransmit(uint8_t identifier, uint8_t NoOfBytes, uint8_t *data);
 
+uint8_t LIN_vReceivePacket(uint8_t identifier, uint8_t NoOfBytes);
+
+uint8_t LIN_uiReceive();
 
 #endif /* HEAD_H_ */

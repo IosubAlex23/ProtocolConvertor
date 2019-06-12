@@ -60,9 +60,15 @@ void LIN_vInit(uint8_t mode)
     UART2_vBaudCalculator(HIGH_SPEED,9600);
     UART2_vTransmitPolarityControl(NON_INVERTED);
     UART2_vStopBitMode(ONE_STOP_BIT);
-    LIN_vCheckSUMMode(ENHANCED);  
+    U2CON2 |= 0x80;
+    LIN_vCheckSUMMode(LEGACY);  
+    U2FIFO |= 0x20;
+    //U2ERRIR = 0x00;
+    
     
     MASK_8BIT_SET_BIT(U2CON1, UART2_ENABLE);  //UART2 ENABLED
+    PIE7 |= 0x10;
+    
 }
 
 
@@ -96,16 +102,16 @@ void LIN_vTransmit(uint8_t identifier, uint8_t NoOfBytes, uint8_t *data)
     U2P2L = RESET_VALUE;
     if((U2P2L == STD_LOW) && (TX2_INTERRUPT_FLAG == STD_LOW))
     {
-        U2P2L = NoOfBytes+1;
-        U2P3L = 0;
+        U2P2L = NoOfBytes;
+        U2P3L = NoOfBytes+1;
         if(MASK_8BIT_GET_LSB_HALF(U2CON0) == LIN_MASTER)
         {
             U2P1L = identifier;
-            __delay_ms(2);
+            //__delay_ms(2);
         }
-        if(TX2_INTERRUPT_FLAG == 1)
+        if(TX2_SHIFTREG_EMPTY == 1)
         {
-            for(byte_count = 0; byte_count<=NoOfBytes; byte_count++)
+            for(byte_count = 0; byte_count<NoOfBytes; byte_count++)
             {
                     UART2_vTransmitter(data[byte_count]);
             }
@@ -123,66 +129,18 @@ bool LIN_vReceiveReady()
     return (bool)UART2_bRX_Ready();
 }
 
-
-
-
-
-void LIN_stateCheck(void)
-{    
-    U2P3L = 2;
-    uint8_t state;
-    switch(lin_state)
-        {
-            case LIN_RX_BREAK:
-            {
-                state = BREAK_STATUS;
-//                if(state == 1)
-//                {
-                    lin_state = LIN_RX_SYNC;
-//                }
-//                else
-//                {
-//                    lin_state = LIN_RX_BREAK;
-//                }
-                break;
-            }
-            
-            case LIN_RX_SYNC:
-            {
-                state = UART2_uiReception();
-                if(state == 0x55)
-                {
-                    lin_state = LIN_RX_PID;
-                }
-                else
-                {
-                   // lin_state = LIN_RX_BREAK;
-                    lin_state = LIN_RX_PID;
-                }                
-                break;
-            }
-            
-            case LIN_RX_PID:
-            {
-                LIN_Frame.pid = UART2_uiReception();
-                lin_state = LIN_RX_DATA;
-                break;
-            }
-            case LIN_RX_DATA:
-            {
-                    LIN_Frame.data[0] = UART2_uiReception();
-                    LIN_Frame.data[1] = UART2_uiReception();
- 
-               
-              
-                lin_state = LIN_RX_CHECKSUM;
-                break;
-            }
-            case LIN_RX_CHECKSUM:
-            {
-                LIN_Frame.checksum = UART2_uiReception();
-                lin_state = LIN_RX_BREAK;
-                break;
-            }
-        }    
+uint8_t LIN_vReceivePacket(uint8_t identifier, uint8_t NoOfBytes)
+{
+    
+    
 }
+
+
+uint8_t LIN_uiReceive()
+{
+    uint8_t rec;
+    UART2_uiReception(&rec);
+    return rec;
+}
+
+

@@ -26,7 +26,7 @@
                                                                       //                                        0 = Transmit buffer is not full  
 #define RX2_BUFFER_FULL_STATUS          (MASK_8BIT_GET_BIT(U2FIFO,0))     // Receive Buffer Full Status bit     1 = Receive buffer is full
                                                                           //                                    0 = Receive buffer is not full
-
+#define TX2_SHIFTREG_EMPTY          (MASK_8BIT_GET_BIT(U2FIFO,5)) 
 /*----------------------------------------------------------------------------*/
 /*                                 Data types                                 */
 /*----------------------------------------------------------------------------*/
@@ -61,7 +61,7 @@ void UART2_vTransmitter(uint8_t valSend);
  * \param    
  * \return    returns the value received in the U2RXB register 
  */
-uint8_t UART2_uiReception();
+uint8_t UART2_uiReception(uint8_t *received_data);
 
 /**
  * \brief     This function automatically calculates Baud Rate and sets the operating mode (NORMAL_SPEED or HIGH_SPEED);
