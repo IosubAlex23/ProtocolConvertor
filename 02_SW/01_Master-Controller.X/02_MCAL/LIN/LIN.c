@@ -57,17 +57,17 @@ void LIN_vInit(uint8_t mode)
     MASK_8BIT_SET_BIT(U2CON0, UART2_TX_EN); //Enable TX on UART2
     MASK_8BIT_SET_BIT(U2CON0, UART2_RX_EN); //Enable RX on UART2
     UART2_vUARTMode(mode);    //set UART2 Mode as LIN MASTER
-    UART2_vBaudCalculator(HIGH_SPEED,9600);
+    UART2_vBaudCalculator(HIGH_SPEED,19200);
     UART2_vTransmitPolarityControl(NON_INVERTED);
     UART2_vStopBitMode(ONE_STOP_BIT);
     U2CON2 |= 0x80;
     LIN_vCheckSUMMode(LEGACY);  
     U2FIFO |= 0x20;
     //U2ERRIR = 0x00;
-    
+    PIE7 |= 0x10;
     
     MASK_8BIT_SET_BIT(U2CON1, UART2_ENABLE);  //UART2 ENABLED
-    PIE7 |= 0x10;
+    
     
 }
 
@@ -107,7 +107,7 @@ void LIN_vTransmit(uint8_t identifier, uint8_t NoOfBytes, uint8_t *data)
         if(MASK_8BIT_GET_LSB_HALF(U2CON0) == LIN_MASTER)
         {
             U2P1L = identifier;
-            //__delay_ms(2);
+            __delay_us(225);
         }
         if(TX2_SHIFTREG_EMPTY == 1)
         {
