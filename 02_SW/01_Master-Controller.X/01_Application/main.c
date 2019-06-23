@@ -23,10 +23,7 @@ void INTERRUPT_Initialize(void)
 }
 
 
-bool DataCanBeSent = true;
-volatile uint8_t rcv[10] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-volatile uint8_t ircv = 0;
-volatile uint8_t noOfBytes = 2;
+
 
 void main(void)
 {
@@ -34,58 +31,32 @@ void main(void)
 
     SYSTEM_Initialize();
     INTERRUPT_Initialize();
-    LIN_vInit(LIN_MASTER);
 
+    LIN_actualConfig.configBaudGeneratorSpeed = HIGH_SPEED;
+    LIN_actualConfig.configBaudValue = BAUD_19200;
+    LIN_actualConfig.configUartMode = LIN_MASTER;
+    LIN_actualConfig.configTransmitPolarity = NON_INVERTED;
+    LIN_actualConfig.configStopBitMode = ONE_STOP_BIT;
+    LIN_actualConfig.config_ChecksumMode = ENHANCED;
+    LIN_vInit(&LIN_actualConfig);
 
-    uint8_t i = 0;
+    uint8_t i = 5;
     uint8_t j, k = 0;
-    uint8_t a[] = {0x00, 0xFE, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+    uint8_t a[] = {0x43, 0xFE, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+    uint8_t b[] = {0x7, 0x4, 0x3, 0x04, 0x05, 0x06, 0x07, 0x08};
     GPIO_vSetPinDirection(0xA2, GPIO_OUTPUT_PIN);
     GPIO_vSetPinLevel(0xA2, STD_HIGH);
-    //i = LIN_uiReceive();
+    
+
     while (1)
     {
-
-LIN_vTransmit(0x01, 2, a);
-        if (DataCanBeSent == true)
-        {
-          // LIN_vTransmit(0x01, 2, a);
-        }
-        U2ERRIR &= 0x10;
-
-
-
-
-
-
+        //LIN_vTransmit(0x01,2,a);
+        LIN_vTransmit(49,1,b);
+        //__delay_ms(1);
     }
 }
 
-void __interrupt(irq(60)) LIN_ReceiveInterrupt(void)
-{
-    uint8_t test = 0;
 
-
-    rcv[ircv] = LIN_uiReceive();
-    if (rcv[ircv] == 0x03)
-    {
-        //for transmit
-//        U2P2L = 2;
-//        UART2_vTransmitter(0x00);
-//        UART2_vTransmitter(0x33);
-//        UART2_vTransmitter(0x4);
-        //LIN_vTransmit(0x2, noOfBytes, a);
-
-
-    }
-
-    if (ircv >= noOfBytes)
-    {
-        DataCanBeSent = false;
-        U2ERRIR &= 0x10;
-    }
-    ircv++;
-}
 
 
 
