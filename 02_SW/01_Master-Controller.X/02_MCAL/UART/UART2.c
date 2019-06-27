@@ -49,19 +49,19 @@ void UART2_vInit(void)
 {
     GPIO_vSetPinDirection(0xB2, GPIO_OUTPUT_PIN); // PIN B2 set as output
     GPIO_vSetPinDirection(0xB1, GPIO_INPUT_PIN); // PIN B1 set as input
-    RB2PPS = 0x16;              //  UART1 => set TX on PORTB pin 2
-    U2RXPPS = 0x09;              //  UART1 => set RX on PORTB pin 1 
+    RB2PPS = 0x16;              //  UART2 => set TX on PORTB pin 2
+    U2RXPPS = 0x09;              //  UART2 => set RX on PORTB pin 1 
     U2CON0 = 0xB0;              //  BRGS:1(HighSpeed) / TXEN:1(Transmie Enable) / RXEN:1(Receive Enable) 
     U2CON1 = 0x80;              //  ON:1(Serial Port Enable))
     U2CON2 = 0x00;       //  HW flow control RTS/CTS 
     U2ERRIR = RESET_VALUE;
-    U2ERRIR = RESET_VALUE;
+    //U2ERRIE = RESET_VALUE;
     U2UIR = RESET_VALUE;
     U2FIFO = RESET_VALUE;
     U2BRG = DEFAULT_BAUDRATE;
-    //U2P1L = RESET_VALUE;
-    //U2P2 = RESET_VALUE;
-    //U2P3 = RESET_VALUE;
+//    U2P1L = RESET_VALUE;
+//    U2P2 = RESET_VALUE;
+//    U2P3 = RESET_VALUE;
     U2TXCHK  = RESET_VALUE;
 }
 
@@ -71,15 +71,17 @@ void UART2_vTransmitter(uint8_t valSend)
     {
     }
     U2TXB = valSend; 
+    
 }
 
-uint8_t UART2_uiReception()
+uint8_t UART2_uiReception(uint8_t *received_data)
 {
-//    while(STD_LOW == RX2_INTERRUPT_FLAG)
-//    {
-//        
-//    } 
-   return U2RXB;
+    if(STD_HIGH == RX2_INTERRUPT_FLAG)
+    {
+        *received_data = U2RXB;
+        return 1;
+    } 
+   return 0;
 }
 
 /*----------------------------------------------------------------------------*/

@@ -1,6 +1,6 @@
 /**
  * \file       LIN.c
- * \author     
+ * \author     Ioan Nicoara 
  * \brief      Short description for this source file
  */
 
@@ -16,7 +16,9 @@
 /*                               Local defines                                */
 /*----------------------------------------------------------------------------*/
 #define DEFAULT_CHECKSUM_MODE       (LEGACY)
-#define BREAK_STATUS                MASK_8BIT_GET_BIT(U2ERRIR, 2)
+#define BREAK_STATUS                MASK_8BIT_GET_BIT(U2ERRIR, 2u)
+#define NO_OF_PIDS                  (10u)
+#define RECEIVE_FIFO_SIZE           (32u)
 /*----------------------------------------------------------------------------*/
 /*                              Local data types                              */
 /*----------------------------------------------------------------------------*/
@@ -33,7 +35,23 @@ LIN_packet LIN_Frame;
 /*----------------------------------------------------------------------------*/
 /*                             Local data at RAM                              */
 /*----------------------------------------------------------------------------*/
+bool DataCanBeSent = true;
+volatile uint8_t rcv[12] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+volatile uint8_t ircv = 0u;
+volatile uint8_t noOfBytes = 2u;
+uint8_t DataBytesToReceive = 0xFF;
+uint8_t PID_wasFound = false;
 
+LIN_packet LIN_ReceiveFIFO[32u];
+uint8_t LIN_FIFOStackPointer = 0u;
+uint8_t LIN_FIFOReadPointer = 0u;
+bool LIN_FIFOOverflow = false;
+
+volatile LIN_packet LIN_FramePacket;
+PID_Description PID_noOfBytes[NO_OF_PIDS];
+
+PID_Description * Actual_PID;
+uint8_t PID_noOfBytesIndex = 2u;
 /*----------------------------------------------------------------------------*/
 /*                             Local data at ROM                              */
 /*----------------------------------------------------------------------------*/
@@ -41,37 +59,188 @@ LIN_packet LIN_Frame;
 /*----------------------------------------------------------------------------*/
 /*                       Declaration of local functions                       */
 /*----------------------------------------------------------------------------*/
+/**
+ * \brief     This function is used for sets the Checksum Mode Select bit 
+ * \param     CkSUM - represents Checksum Mode: LEGACY - not include PID in Checksum
+ *                                              ENHANCED - include PID in CheckSum
+ * \return    None 
+ */
 void LIN_vCheckSUMMode(CheckSUM_Mode CkSUM);
+
+/**
+ * \brief     This function checks if the LIN transmitter is ready to transmit data
+ * \param     None
+ * \return    Status of LIN transmitter
+                TRUE: LIN transmitter is ready
+                FALSE: LIN transmitter is not ready
+ */
+bool LIN_vTransmitReady();
+
+/**
+ * \brief     This function checks if the LIN receiver is ready for reading
+ * \param     None
+ * \return    Status of LIN receiver
+                TRUE: LIN receiver is ready for reading
+                FALSE: LIN receiver is not ready for reading
+ */
+bool LIN_vReceiveReady();
+
+/**
+ * \brief     This function is used for receive values on UART Asynchronous Receiver
+ * \param    
+ * \return    returns the value received in the U2RXB register 
+ */
+uint8_t LIN_uiReceive();
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of global functions                     */
 
 /*----------------------------------------------------------------------------*/
-void LIN_vInit(uint8_t mode)
+void LIN_vInit(LIN_Configuration * Config)
 {
-    /* A2 pin is CS pin */
-    GPIO_vSetPinDirection(0xA2, GPIO_OUTPUT_PIN);
-    GPIO_vSetPinLevel(0xA2, STD_LOW);
     UART2_vInit();
     RB2PPS = 0x16; //  UART1 => set TX on PORTB pin 2
     U2RXPPS = 0x09; //  UART1 => set RX on PORTB pin 1 
     GPIO_vSetPinDirection(0xB2, GPIO_OUTPUT_PIN); // PIN B2 set as output
     GPIO_vSetPinDirection(0xB1, GPIO_INPUT_PIN); // PIN B1 set as input
-
     MASK_8BIT_CLEAR_BIT(U2CON1, UART2_ENABLE); //UART2 Disabled
     MASK_8BIT_SET_BIT(U2CON0, UART2_TX_EN); //Enable TX on UART2
     MASK_8BIT_SET_BIT(U2CON0, UART2_RX_EN); //Enable RX on UART2
-    UART2_vUARTMode(mode); //set UART2 Mode as LIN MASTER
-    UART2_vBaudCalculator(HIGH_SPEED, 9600);
-    UART2_vTransmitPolarityControl(NON_INVERTED);
-    UART2_vStopBitMode(ONE_STOP_BIT);
-    LIN_vCheckSUMMode(ENHANCED);
-
+    UART2_vUARTMode(Config->configUartMode); //set UART2 Mode as LIN MASTER
+    UART2_vBaudCalculator(Config->configBaudGeneratorSpeed, Config->configBaudValue);
+    UART2_vTransmitPolarityControl(Config->configTransmitPolarity);
+    UART2_vStopBitMode(Config->configStopBitMode);
+    U2CON2 |= 0x80;
+    LIN_vCheckSUMMode(Config->config_ChecksumMode);
+    U2FIFO |= 0x20;
+    PIE7 |= 0x10;
     MASK_8BIT_SET_BIT(U2CON1, UART2_ENABLE); //UART2 ENABLED
+    LIN_FramePacket.noOfBytes = 0u;
+    GPIO_vSetPinDirection(0xA2, GPIO_OUTPUT_PIN);
+    GPIO_vSetPinLevel(0xA2, STD_HIGH);
 
 
+    /* Writing id 1 */
+    PID_noOfBytes[0].pid = 0x1;
+    PID_noOfBytes[0].noOfBytes = 0x2;
+    PID_noOfBytes[0].type = Subscriber;
+
+    /* Reading from id 2*/
+    PID_noOfBytes[1].pid = 0x2;
+    PID_noOfBytes[1].noOfBytes = 0x1;
+    PID_noOfBytes[1].type = Publisher;
 }
 
+void LIN_SetDataForResponse(uint8_t pid, uint8_t *data, uint8_t noOfDataBytes)
+{
+    uint8_t index;
+    uint8_t bytePosition;
 
+    for (index = 0u; index < NO_OF_PIDS; index++) //index represents pid
+    {
+        if (pid == PID_noOfBytes[index].pid)
+        {
+            for (bytePosition = 0u; bytePosition < noOfDataBytes; bytePosition++)
+            {
+                PID_noOfBytes[index].dataForResponse[bytePosition] = data[bytePosition];
+            }
+            PID_noOfBytes[index].dataForResponseStatus = LIN_RESPONSE_DATA_READY;
+        }
+        else
+        {
+
+        }
+    }
+}
+
+void LIN_vAddNewPID(uint8_t pid, uint8_t noOfDataBytes)
+{
+    PID_noOfBytes[PID_noOfBytesIndex].pid = pid;
+    PID_noOfBytes[PID_noOfBytesIndex].noOfBytes = noOfDataBytes;
+    PID_noOfBytesIndex++;
+}
+
+void LIN_vTransmit(uint8_t identifier, uint8_t NoOfBytes, uint8_t *data)
+{
+    if (true == DataCanBeSent)
+    {
+        uint8_t byte_count = 0u;
+        U2P2L = RESET_VALUE;
+        if ((STD_LOW == U2P2L) && (STD_LOW == TX2_INTERRUPT_FLAG))
+        {
+            U2P2L = NoOfBytes;
+            //U2P3L = NoOfBytes + 1;
+            if (LIN_MASTER == MASK_8BIT_GET_LSB_HALF(U2CON0))
+            {
+                U2P1L = identifier;
+                __delay_us(500u);
+            }
+            if (STD_HIGH == TX2_SHIFTREG_EMPTY)
+            {
+                for (byte_count = 0u; byte_count < NoOfBytes; byte_count++)
+                {
+                    UART2_vTransmitter(data[byte_count]);
+                }
+            }
+            else
+            {
+
+            }
+        }
+    }
+    U2ERRIR &= 0x10u;
+}
+
+LIN_packet * LIN_GetPacket()
+{
+    LIN_packet * returnValue = &LIN_ReceiveFIFO[LIN_FIFOReadPointer];
+
+    LIN_FIFOReadPointer++;
+    if (LIN_FIFOReadPointer >= RECEIVE_FIFO_SIZE)
+    {
+        LIN_FIFOReadPointer = 0u;
+        LIN_FIFOOverflow = false;
+    }
+    else
+    {
+
+    }
+
+    return returnValue;
+}
+
+bool LIN_bNewPacketAvailable(void)
+{
+    bool returnValue = false;
+    if (LIN_FIFOStackPointer != 0)
+    {
+        if (LIN_FIFOOverflow == true)
+        {
+            returnValue = ((LIN_FIFOReadPointer - 1) > LIN_FIFOStackPointer);
+        }
+        else
+        {
+            returnValue = ((LIN_FIFOStackPointer - 1) > LIN_FIFOReadPointer);
+        }
+
+    }
+    return returnValue;
+}
+
+bool LIN_bDataWasRequested(uint8_t * matchedPID)
+{
+    bool returnValue = false;
+    uint8_t index;
+    for (index = 0; index < NO_OF_PIDS; index++)
+    {
+        if (PID_noOfBytes[index].dataForResponseStatus == LIN_RESPONSE_DATA_REQUESTED)
+        {
+            *matchedPID = PID_noOfBytes[index].pid;
+            returnValue = true;
+            break;
+        }
+    }
+    return returnValue;
+}
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of local functions                      */
 
@@ -79,7 +248,7 @@ void LIN_vInit(uint8_t mode)
 
 void LIN_vCheckSUMMode(CheckSUM_Mode CkSUM)
 {
-    if ((CkSUM < LEGACY) || (CkSUM > ENHANCED))
+    if (CkSUM < LEGACY || CkSUM > ENHANCED)
     {
         MASK_8BIT_CLEAR_BIT(U2CON2, CHECKSUM_BIT); // sets CHECKSUM Mode as LEGACY (if CkSUM parameter is not in interval)[DEFAULT]
     }
@@ -97,44 +266,6 @@ void LIN_vCheckSUMMode(CheckSUM_Mode CkSUM)
     }
 }
 
-void LIN_vTransmit(uint8_t identifier, uint8_t NoOfBytes, uint8_t *data)
-{
-    uint8_t byte_count = 0;
-    U2P2L = RESET_VALUE;
-    if ((U2P2L == STD_LOW) && (TX2_INTERRUPT_FLAG == STD_LOW))
-    {
-        U2P2L = NoOfBytes + 1;
-        U2P3L = 0;
-        if (MASK_8BIT_GET_LSB_HALF(U2CON0) == LIN_MASTER)
-        {
-            U2P1L = identifier;
-            //            __delay_ms(2);
-        }
-        if (TX2_INTERRUPT_FLAG == 1)
-        {
-            for (byte_count = 0; byte_count <= NoOfBytes; byte_count++)
-            {
-                UART2_vTransmitter(data[byte_count]);
-            }
-        }
-    }
-}
-
-void LIN_vMasterReceive(uint8_t identifier, uint8_t NoOfBytes, uint8_t *data)
-{
-    uint8_t byte_count = 0;
-    U2P2L = RESET_VALUE;
-    U2P3L = NoOfBytes;
-    if (RX2_INTERRUPT_FLAG == 1)
-    {
-        for (byte_count = 0; byte_count < NoOfBytes; byte_count++)
-        {
-            data[byte_count] = UART2_uiReception();
-        }
-    }
-
-}
-
 bool LIN_vTransmitReady()
 {
     return (bool) UART2_bTX_Ready();
@@ -145,74 +276,89 @@ bool LIN_vReceiveReady()
     return (bool) UART2_bRX_Ready();
 }
 
-void LIN_stateCheck(void)
+uint8_t LIN_uiReceive()
 {
-    U2P3L = 2;
-    uint8_t state;
-    switch (lin_state)
-    {
-        case LIN_RX_BREAK:
-        {
-            state = BREAK_STATUS;
-            //                if(state == 1)
-            //                {
-            lin_state = LIN_RX_SYNC;
-            //                }
-            //                else
-            //                {
-            //                    lin_state = LIN_RX_BREAK;
-            //                }
-            break;
-        }
+    uint8_t rec;
+    UART2_uiReception(&rec);
+    return rec;
+}
 
-        case LIN_RX_SYNC:
+void __interrupt(irq(60)) LIN_ReceiveInterrupt(void)
+{
+    uint8_t index;
+    rcv[ircv] = LIN_uiReceive();
+    if (false == PID_wasFound)
+    {
+        for (index = 0u; index < PID_noOfBytesIndex; index++)
         {
-            state = UART2_uiReception();
-            if (state == 0x55)
+            if ((rcv[ircv] & PID_MASK) == PID_noOfBytes[index].pid)
             {
-                lin_state = LIN_RX_PID;
+                DataBytesToReceive = PID_noOfBytes[index].noOfBytes + 1u;
+                LIN_ReceiveFIFO[LIN_FIFOStackPointer].noOfBytes = 0;
+                LIN_ReceiveFIFO[LIN_FIFOStackPointer].pid = rcv[ircv] & PID_MASK;
+                DataBytesToReceive--;
+                U2P3L = PID_noOfBytes[index].noOfBytes;
+                PID_wasFound = true;
+                Actual_PID = &PID_noOfBytes[index];
+            }
+        }
+    }
+    else if (true == PID_wasFound)
+    {
+        if (Actual_PID->type == Publisher)
+        {
+            if (LIN_actualConfig.configUartMode == LIN_SLAVE)
+            {
+                if (Actual_PID->dataForResponseStatus == LIN_RESPONSE_DATA_READY)
+                {
+                    LIN_vTransmit(Actual_PID->pid, Actual_PID->noOfBytes, Actual_PID->dataForResponse);
+                    Actual_PID->dataForResponseStatus = LIN_RESPONSE_IDLE;
+                }
+                else
+                {
+                    LIN_vTransmit(Actual_PID->pid, Actual_PID->noOfBytes, Actual_PID->dataPendingValue);
+                    Actual_PID->dataForResponseStatus = LIN_RESPONSE_DATA_REQUESTED;
+                }
             }
             else
             {
-                // lin_state = LIN_RX_BREAK;
-                lin_state = LIN_RX_PID;
+                UART2_vTransmitter(0x63);
             }
-            break;
         }
-
-        case LIN_RX_PID:
+        else
         {
-            LIN_Frame.pid = UART2_uiReception();
-            lin_state = LIN_RX_DATA;
-            break;
+            if (0u == DataBytesToReceive)
+            {
+                LIN_ReceiveFIFO[LIN_FIFOStackPointer].checksum = rcv[LIN_ReceiveFIFO[LIN_FIFOStackPointer].noOfBytes + 1u];
+                LIN_FIFOStackPointer++;
+                if (LIN_FIFOStackPointer >= RECEIVE_FIFO_SIZE)
+                {
+                    LIN_FIFOStackPointer = 0u;
+                    LIN_FIFOOverflow = true;
+                }
+                DataBytesToReceive = PID_noOfBytes[index].noOfBytes;
+                ircv = 255u;
+                PID_wasFound = false;
+            }
+            else
+            {
+                LIN_ReceiveFIFO[LIN_FIFOStackPointer].data[LIN_ReceiveFIFO[LIN_FIFOStackPointer].noOfBytes] = rcv[LIN_ReceiveFIFO[LIN_FIFOStackPointer].noOfBytes + 1u];
+                LIN_ReceiveFIFO[LIN_FIFOStackPointer].noOfBytes++;
+                DataBytesToReceive--;
+            }
         }
-        case LIN_RX_DATA:
-        {
-            LIN_Frame.data[0] = UART2_uiReception();
-            LIN_Frame.data[1] = UART2_uiReception();
 
-
-
-            lin_state = LIN_RX_CHECKSUM;
-            break;
-        }
-        case LIN_RX_CHECKSUM:
-        {
-            LIN_Frame.checksum = UART2_uiReception();
-            lin_state = LIN_RX_BREAK;
-            break;
-        }
     }
-}
-
-bool LIN_bReceive(uint8_t * storageLocation)
-{
-    bool returnValue = false;
-    U2P3L = 1;
-    if (RX2_INTERRUPT_FLAG == 1)
+    else
     {
-        *storageLocation = UART2_uiReception();
-        returnValue = true;
+
     }
-    return returnValue;
+    if (ircv >= noOfBytes)
+    {
+        DataCanBeSent = true;
+        //U2ERRIR &= 0x10;
+    }
+    ircv++;
+    U2ERRIR &= 0x10;
 }
+
