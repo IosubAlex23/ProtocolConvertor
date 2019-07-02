@@ -20,6 +20,8 @@
 #include "../../02_MCAL/SPI/SPI.h"
 #include "../Interrupt/Interrupt.h"
 #include "../02_MCAL/RS232/RS232.h"
+#include "../02_MCAL/LIN/LIN.h"
+#include "../01_Application/DataLogger/DataLogger.h"
 /*----------------------------------------------------------------------------*/
 /*                             Defines and macros                             */
 /*----------------------------------------------------------------------------*/

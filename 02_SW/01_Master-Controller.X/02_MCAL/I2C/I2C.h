@@ -13,6 +13,7 @@
 /*----------------------------------------------------------------------------*/
 #include "../../03_Common/types.h"
 #include "../TIMER2/Timer2.h"
+#include "../01_Application/DataLogger/DataLogger.h"
 
 /*----------------------------------------------------------------------------*/
 /*                             Defines and macros                             */
@@ -106,6 +107,8 @@ bool I2C_bIsMasterModeActive(void);
  * \return    
  */
 void I2C_vSetCLK(uint8_t clkID);
+
+uint8_t I2C_uiGetNumberOfResponseBytes(void);
 
 #endif	/* I2C_H */
 

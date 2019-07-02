@@ -121,7 +121,7 @@ void I2C_vInit(void)
     // de aici in jos is copy paste de pe proj vechi
     TRISC &= ~I2C2_PORT_MASK;
     ANSELC &= ~I2C2_PORT_MASK;
-    WPUC |= I2C2_PORT_MASK;
+    WPUC |= 0x08;
     ODCONC |= I2C2_PORT_MASK;
     SLRCONC |= I2C2_PORT_MASK;
 
@@ -294,6 +294,12 @@ void I2C_vSetCLK(uint8_t clkID)
 {
     Timer2_vInit(clkID);
 }
+
+uint8_t I2C_uiGetNumberOfResponseBytes(void)
+{
+    return I2C_SlaveResponseData.NumberOfBytesToBeSent;
+}
+
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of local functions                      */
 
@@ -315,22 +321,8 @@ void __interrupt(irq(58)) I2C_ISR(void)
         if (I2C_SlaveResponseData.NumberOfBytesToBeSent > 0)
         {
             I2C_SlaveResponseData.DataAvailableOnStart = true;
+            DataLogger_vSendDataConverted(matchedAdrr, APP_PROTOCOL_I2C, I2C_SlaveResponseData.DataForResponse, I2C_SlaveResponseData.NumberOfBytesToBeSent);
         }
-    }
-    if (I2C2PIRbits.PCIF == 1)
-    {
-        I2C2PIRbits.PCIF = 0;
-        I2C2STAT1bits.CLRBF = 1;
-        I2C_SlaveResponseData.StackIndex = 0;
-        I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
-        I2C_SlaveResponseData.DataAvailableOnStart = false;
-        I2C_SlaveDataRequestedFlag = false;
-        I2C_ReceiveFIFOBytes[I2C_ReceiveFIFO_StackPointer - 1].isAStopByte = true;
-        //        if (I2C2STAT0bits.R == 0)
-        //        {
-        //            targetTable = MainApplication_uiCheckLookUpTable(APP_PROTOCOL_I2C, &matchedAdrr);
-        //            MainApplication_vSetLastByte(targetTable->TargetProtocol);
-        //        }
     }
 
     if ((I2C2PIRbits.ADRIF == 1) || (I2C2PIRbits.ACKTIF == 1) || (I2C2PIRbits.ACKTIF == 1))
@@ -367,6 +359,9 @@ void __interrupt(irq(58)) I2C_ISR(void)
                 {
                     I2C2_WRITE_TXB(I2C_SlaveResponseData.DataPendingValue);
                     /* Here should implement the request*/
+
+                    DataLogger_vSendDataRequested(matchedAdrr, APP_PROTOCOL_I2C, 0x0, APP_PROTOCOL_UNKNOWN);
+
                     I2C_SlaveDataRequestedFlag = true;
                 }
 
@@ -427,6 +422,22 @@ void __interrupt(irq(58)) I2C_ISR(void)
             }
         }
 
+    }
+    if (I2C2PIRbits.PCIF == 1)
+    {
+        I2C2PIRbits.PCIF = 0;
+        I2C2STAT1bits.CLRBF = 1;
+        I2C_SlaveResponseData.StackIndex = 0;
+        I2C_SlaveResponseData.NumberOfBytesToBeSent = 0;
+        I2C_SlaveResponseData.DataAvailableOnStart = false;
+
+        I2C_SlaveDataRequestedFlag = false;
+        I2C_ReceiveFIFOBytes[I2C_ReceiveFIFO_StackPointer - 1].isAStopByte = true;
+        //        if (I2C2STAT0bits.R == 0)
+        //        {
+        //            targetTable = MainApplication_uiCheckLookUpTable(APP_PROTOCOL_I2C, &matchedAdrr);
+        //            MainApplication_vSetLastByte(targetTable->TargetProtocol);
+        //        }
     }
 }
 

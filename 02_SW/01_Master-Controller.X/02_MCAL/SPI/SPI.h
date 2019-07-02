@@ -66,7 +66,13 @@ void SPI_vSlaveState(uint8_t state);
  * \param     data - data byte to be transmitted over SPI bus
  * \return    ReceivedData - The received byte over SPI bus 
  */
-uint8_t SPI_uiExchangeByte(uint8_t data);
+uint8_t SPI_uiSlaveExchangeByte(uint8_t data);
+/**
+ * \brief     This function is used for send and receive values on SPI Master/Slave Module (Exchanges a data byte over SPI);
+ * \param     data - data byte to be transmitted over SPI bus
+ * \return    ReceivedData - The received byte over SPI bus 
+ */
+uint8_t SPI_uiMasterExchangeByte(uint8_t data);
 
 /**
  * \brief     This function is used for send and receive values on SPI Master/Slave Module (Exchanges X data bytes over SPI);

@@ -98,12 +98,14 @@ void SPI_vInit(uint8_t OperationMode)
     SPI_FIFO_WritePointer = 0u;
     if (OperationMode == MASTER_MODE)
     {
+        /* RA5PPS when testing with PCBv1 RA1PPS then testing with PCBv1.3 */
         RB3PPS = 0x1E; //SPI_SCK_SLAVE_INPUT:RB3
         RC1PPS = 0x1F; //SPI_MOSI_INPUT:RC1
         SPI1SDIPPS = 0x10; //SPI_MISO_OUTPUT:RC0
-        RA1PPS = 0x20; //SPI_SS_OUTPUT:RA5
+        RA0PPS = 0x20; //SPI_SS_OUTPUT:RA5
         SPI1BAUD = 0x77; //200kHz @ 48MHz FOSC
-        SPI1CON1 = 0x44;
+        //        SPI1BAUD = 0xee; //100kHz @ 48MHz FOSC
+        SPI1CON1 = 0x04;
         SPI1CON2 = 0X03;
         SPI1CON0 = 0x83; //BMODE last byte; LSBF MSb first; EN enabled; MST bus master; 
         GPIO_vSetPinDirection(SPI_SCK, GPIO_OUTPUT_PIN);
@@ -112,6 +114,7 @@ void SPI_vInit(uint8_t OperationMode)
         GPIO_vSetPinDirection(SPI_SS_WHEN_MASTER, GPIO_OUTPUT_PIN);
         PIE2bits.SPI1IE = 0; // disable spi interrupt
         PIE2bits.SPI1RXIE = 0; // disable SPI interrupt
+        PMD6 = 0x7F;
     }
     else if (OperationMode == SLAVE_MODE)
     {
@@ -120,9 +123,9 @@ void SPI_vInit(uint8_t OperationMode)
         RC0PPS = 0x1F; //SPI_MISO_OUTPUT
         SPI1SSPPS = 0x01; //SPI_SS_INPUT
         SPI1BAUD = RESET_VALUE;
-        SPI1CON1 = 0x40;
-        SPI1CON2 = 0x07;
-        SPI1CON0 = 0x80;
+        SPI1CON1 = 0x04;
+        SPI1CON2 = 0x03;
+        SPI1CON0 = 0x81;
         GPIO_vSetPinDirection(SPI_SCK, GPIO_INPUT_PIN);
         GPIO_vSetPinDirection(SPI_MOSI, GPIO_INPUT_PIN);
         GPIO_vSetPinDirection(SPI_MISO, GPIO_OUTPUT_PIN);
@@ -142,12 +145,23 @@ void SPI_vInit(uint8_t OperationMode)
     }
 }
 
-uint8_t SPI_uiExchangeByte(uint8_t data)
+uint8_t SPI_uiSlaveExchangeByte(uint8_t data)
 {
     uint8_t ReceivedData; //Represents the received data
     while (false == SPI_bHasNewData());
     //SPI_vTransmit(data);
     ReceivedData = SPI_vFIFOPop();
+    
+    return ReceivedData;
+}
+
+uint8_t SPI_uiMasterExchangeByte(uint8_t data)
+{
+    uint8_t ReceivedData; //Represents the received data
+
+    SPI1TCNTL = 1u; //One byte transfer count
+    SPI_vTransmit(data);
+    ReceivedData = SPI_uiReceive();
 
     return ReceivedData;
 }
@@ -164,7 +178,7 @@ uint8_t SPI_uiExchangeXBytes(uint8_t *data, uint8_t NoOfBytes)
         if (TRANSMIT_BUFFER_EMPTY == 1u)
         {
             SPI_vTransmit(data[byte_count]);
-            data[byte_count + 3] = SPI_uiReceive();
+            SPI_uiReceive();
             //            ReceivedData = SPI_uiReceive();
         }
         else

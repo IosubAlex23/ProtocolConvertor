@@ -584,6 +584,8 @@ void CAN_vRequestOperationMode(CAN_OperationMode mode)
 void CAN_vSetFunctionalMode(CAN_FunctionalMode mode)
 {
     uint8_t ecancon_desiredValue = (mode << CAN_MDSEL_POSITION);
+    /* rESETS the module*/
+    CANCON = 0x20;
     do
     {
         ECANCON = ecancon_desiredValue;

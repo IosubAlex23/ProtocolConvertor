@@ -46,6 +46,7 @@
 /*----------------------------------------------------------------------------*/
 void INTERRUPT_Initialize(void)
 {
+    INTCON0 = 0x00;
     INTCON0bits.GIEH = 1; // Enable high priority interrupts
     INTCON0bits.GIEL = 1; // Enable low priority interrupts
     INTCON0bits.IPEN = 1; // Enable interrupt priority

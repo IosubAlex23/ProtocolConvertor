@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 uint8_t lin_state = LIN_RX_BREAK;
 LIN_packet LIN_Frame;
+volatile LIN_Configuration LIN_currentConfig;
 /*----------------------------------------------------------------------------*/
 /*                             Global data at RAM                             */
 /*----------------------------------------------------------------------------*/
@@ -51,7 +52,7 @@ volatile LIN_packet LIN_FramePacket;
 PID_Description PID_noOfBytes[NO_OF_PIDS];
 
 PID_Description * Actual_PID;
-uint8_t PID_noOfBytesIndex = 2u;
+uint8_t PID_noOfBytesIndex = 0u;
 /*----------------------------------------------------------------------------*/
 /*                             Local data at ROM                              */
 /*----------------------------------------------------------------------------*/
@@ -91,6 +92,7 @@ bool LIN_vReceiveReady();
  * \return    returns the value received in the U2RXB register 
  */
 uint8_t LIN_uiReceive();
+
 /*----------------------------------------------------------------------------*/
 /*                     Implementation of global functions                     */
 
@@ -106,7 +108,7 @@ void LIN_vInit(LIN_Configuration * Config)
     MASK_8BIT_SET_BIT(U2CON0, UART2_TX_EN); //Enable TX on UART2
     MASK_8BIT_SET_BIT(U2CON0, UART2_RX_EN); //Enable RX on UART2
     UART2_vUARTMode(Config->configUartMode); //set UART2 Mode as LIN MASTER
-    UART2_vBaudCalculator(Config->configBaudGeneratorSpeed, Config->configBaudValue);
+        UART2_vBaudCalculator(1, LIN_currentConfig.configBaudValue);
     UART2_vTransmitPolarityControl(Config->configTransmitPolarity);
     UART2_vStopBitMode(Config->configStopBitMode);
     U2CON2 |= 0x80;
@@ -117,7 +119,7 @@ void LIN_vInit(LIN_Configuration * Config)
     LIN_FramePacket.noOfBytes = 0u;
     GPIO_vSetPinDirection(0xA2, GPIO_OUTPUT_PIN);
     GPIO_vSetPinLevel(0xA2, STD_HIGH);
-
+    LIN_currentConfig.configUartMode = Config->configUartMode;
 
     /* Writing id 1 */
     PID_noOfBytes[0].pid = 0x1;
@@ -128,6 +130,7 @@ void LIN_vInit(LIN_Configuration * Config)
     PID_noOfBytes[1].pid = 0x2;
     PID_noOfBytes[1].noOfBytes = 0x1;
     PID_noOfBytes[1].type = Publisher;
+    PID_noOfBytes[1].dataPendingValue[0] = 0x7;
 }
 
 void LIN_SetDataForResponse(uint8_t pid, uint8_t *data, uint8_t noOfDataBytes)
@@ -144,6 +147,7 @@ void LIN_SetDataForResponse(uint8_t pid, uint8_t *data, uint8_t noOfDataBytes)
                 PID_noOfBytes[index].dataForResponse[bytePosition] = data[bytePosition];
             }
             PID_noOfBytes[index].dataForResponseStatus = LIN_RESPONSE_DATA_READY;
+            break;
         }
         else
         {
@@ -155,7 +159,8 @@ void LIN_SetDataForResponse(uint8_t pid, uint8_t *data, uint8_t noOfDataBytes)
 void LIN_vAddNewPID(uint8_t pid, uint8_t noOfDataBytes)
 {
     PID_noOfBytes[PID_noOfBytesIndex].pid = pid;
-    PID_noOfBytes[PID_noOfBytesIndex].noOfBytes = noOfDataBytes;
+    PID_noOfBytes[PID_noOfBytesIndex].noOfBytes = MASK_8BIT_GET_LSB_HALF(noOfDataBytes);
+    PID_noOfBytes[PID_noOfBytesIndex].type = MASK_8BIT_GET_MSB_HALF(noOfDataBytes);
     PID_noOfBytesIndex++;
 }
 
@@ -164,26 +169,30 @@ void LIN_vTransmit(uint8_t identifier, uint8_t NoOfBytes, uint8_t *data)
     if (true == DataCanBeSent)
     {
         uint8_t byte_count = 0u;
-        U2P2L = RESET_VALUE;
-        if ((STD_LOW == U2P2L) && (STD_LOW == TX2_INTERRUPT_FLAG))
+        uint8_t byte_count2 = 0u;
+        for (byte_count2 = 0u; byte_count2 < NoOfBytes; byte_count2++)
         {
-            U2P2L = NoOfBytes;
-            //U2P3L = NoOfBytes + 1;
-            if (LIN_MASTER == MASK_8BIT_GET_LSB_HALF(U2CON0))
+            U2P2L = RESET_VALUE;
+            if ((STD_LOW == U2P2L) && (STD_LOW == TX2_INTERRUPT_FLAG))
             {
-                U2P1L = identifier;
-                __delay_us(500u);
-            }
-            if (STD_HIGH == TX2_SHIFTREG_EMPTY)
-            {
-                for (byte_count = 0u; byte_count < NoOfBytes; byte_count++)
+                U2P2L = NoOfBytes;
+                //U2P3L = NoOfBytes + 1;
+                if (LIN_MASTER == MASK_8BIT_GET_LSB_HALF(U2CON0))
                 {
-                    UART2_vTransmitter(data[byte_count]);
+                    U2P1L = identifier;
+                    __delay_us(500u);
                 }
-            }
-            else
-            {
+                if (STD_HIGH == TX2_SHIFTREG_EMPTY)
+                {
+                    for (byte_count = 0u; byte_count < NoOfBytes; byte_count++)
+                    {
+                        UART2_vTransmitter(data[byte_count]);
+                    }
+                }
+                else
+                {
 
+                }
             }
         }
     }
@@ -246,6 +255,12 @@ bool LIN_bDataWasRequested(uint8_t * matchedPID)
 
 /*----------------------------------------------------------------------------*/
 
+void LIN_vBaudCalculator(BaudGeneratorSpeed GeneratorSpeed, uint32_t DesiredBaud)
+{
+    UART2_vBaudCalculator(GeneratorSpeed, DesiredBaud);
+    LIN_currentConfig.configBaudValue = DesiredBaud;
+}
+
 void LIN_vCheckSUMMode(CheckSUM_Mode CkSUM)
 {
     if (CkSUM < LEGACY || CkSUM > ENHANCED)
@@ -307,17 +322,20 @@ void __interrupt(irq(60)) LIN_ReceiveInterrupt(void)
     {
         if (Actual_PID->type == Publisher)
         {
-            if (LIN_actualConfig.configUartMode == LIN_SLAVE)
+            if (LIN_currentConfig.configUartMode == LIN_SLAVE)
             {
-                if (Actual_PID->dataForResponseStatus == LIN_RESPONSE_DATA_READY)
+                if (Actual_PID->dataForResponseStatus != LIN_RESPONSE_IDLE)
                 {
                     LIN_vTransmit(Actual_PID->pid, Actual_PID->noOfBytes, Actual_PID->dataForResponse);
-                    Actual_PID->dataForResponseStatus = LIN_RESPONSE_IDLE;
+                    //                    Actual_PID->dataForResponseStatus = LIN_RESPONSE_IDLE;
                 }
                 else
                 {
                     LIN_vTransmit(Actual_PID->pid, Actual_PID->noOfBytes, Actual_PID->dataPendingValue);
+                    //                    if (Actual_PID->dataForResponseStatus == LIN_RESPONSE_IDLE)
+                    //                    {
                     Actual_PID->dataForResponseStatus = LIN_RESPONSE_DATA_REQUESTED;
+                    //                    }
                 }
             }
             else
@@ -359,6 +377,10 @@ void __interrupt(irq(60)) LIN_ReceiveInterrupt(void)
         //U2ERRIR &= 0x10;
     }
     ircv++;
+    if(ircv >= 12)
+    {
+        ircv = 0;
+    }
     U2ERRIR &= 0x10;
 }
 

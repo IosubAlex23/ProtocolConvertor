@@ -64,20 +64,17 @@ typedef struct {
 } PID_Description;
 
 typedef struct {
-    UartMode configUartMode;
-    BaudGeneratorSpeed configBaudGeneratorSpeed;
-    BaudValue configBaudValue;
-    TransmitPolarity configTransmitPolarity;
-    StopBitMode configStopBitMode;
-    CheckSUM_Mode config_ChecksumMode;
+    uint32_t configUartMode;
+    uint32_t configBaudGeneratorSpeed;
+    uint32_t configBaudValue;
+    uint32_t configTransmitPolarity;
+    uint32_t configStopBitMode;
+    uint32_t config_ChecksumMode;
 
 } LIN_Configuration;
 /*----------------------------------------------------------------------------*/
 /*                                 Data types                                 */
 /*----------------------------------------------------------------------------*/
-
-LIN_Configuration LIN_actualConfig;
-
 
 /*----------------------------------------------------------------------------*/
 /*                 External declaration of global RAM-Variables               */
@@ -141,5 +138,7 @@ void LIN_SetDataForResponse(uint8_t pid, uint8_t *data, uint8_t noOfDataBytes);
 bool LIN_bNewPacketAvailable(void);
 
 bool LIN_bDataWasRequested(uint8_t * matchedPID);
+
+void LIN_vBaudCalculator(BaudGeneratorSpeed GeneratorSpeed, uint32_t DesiredBaud);
 
 #endif /* HEAD_H_ */
